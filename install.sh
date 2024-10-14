@@ -35,7 +35,7 @@ check_and_install() {
     PKG_NAME=$1
     if ! dpkg -s $PKG_NAME >/dev/null 2>&1; then
         echo "$PKG_NAME is not installed. Installing..."
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y $PKG_NAME || { echo "Failed to install $PKG_NAME."; exit 1; }
+        sudo  sudo DEBIAN_FRONTEND=noninteractive apt install -y $PKG_NAME || { echo "Failed to install $PKG_NAME."; exit 1; }
     else
         echo "$PKG_NAME is already installed."
     fi
@@ -69,7 +69,6 @@ install_dependencies() {
 
     echo "Checking for Python packages..."
 
-    # پرسیدن از کاربر برای آپگرید pip
     read -p "Do you want to upgrade pip to the latest version (Default NO)? (y/N): " UPGRADE_PIP
     UPGRADE_PIP=${UPGRADE_PIP:-n}
     if [[ "$UPGRADE_PIP" == "y" || "$UPGRADE_PIP" == "Y" ]]; then
