@@ -34,7 +34,7 @@ check_and_install() {
     PKG_NAME=$1
     if ! dpkg -s $PKG_NAME >/dev/null 2>&1; then
         echo "$PKG_NAME is not installed. Installing..."
-        sudo apt install -y $PKG_NAME || { echo "Failed to install $PKG_NAME."; exit 1; }
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y $PKG_NAME || { echo "Failed to install $PKG_NAME."; exit 1; }
     else
         echo "$PKG_NAME is already installed."
     fi
