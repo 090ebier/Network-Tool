@@ -5,6 +5,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+# 1. مسیر نصب
 INSTALL_DIR="/opt/net-tool"
 REPO_URL="https://github.com/090ebier/Network-Tool.git"
 
@@ -68,6 +69,7 @@ install_dependencies() {
 
     echo "Checking for Python packages..."
 
+    # پرسیدن از کاربر برای آپگرید pip
     read -p "Do you want to upgrade pip to the latest version (Default NO)? (y/N): " UPGRADE_PIP
     UPGRADE_PIP=${UPGRADE_PIP:-n}
     if [[ "$UPGRADE_PIP" == "y" || "$UPGRADE_PIP" == "Y" ]]; then
@@ -99,6 +101,5 @@ else
     echo "$INSTALL_DIR/Module directory not found!"
     exit 1
 fi
-
 
 echo "Installation complete! You can now run 'net-tool' from the terminal."
