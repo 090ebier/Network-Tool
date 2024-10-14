@@ -94,6 +94,14 @@ else
     exit 1
 fi
 
+# Set permissions for the install.sh script
+if [ -f "$INSTALL_DIR/install.sh" ]; then
+    sudo chmod +x $INSTALL_DIR/install.sh || { echo "Failed to set executable permission on install.sh."; exit 1; }
+else
+    echo "$INSTALL_DIR/install.sh not found!"
+    exit 1
+fi
+
 if [ -d "$INSTALL_DIR/Module" ]; then
     sudo chmod +x $INSTALL_DIR/Module/*.sh || { echo "Failed to set executable permission on module scripts."; exit 1; }
 else
