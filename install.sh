@@ -50,23 +50,7 @@ check_and_install_pip() {
         echo "$PIP_PKG_NAME is already installed."
     fi
 }
-read_from_tty() {
-    local prompt="$1"
-    local default_value="$2"
-    local user_input=""
 
-    if [ -t 0 ]; then
-        # اگر ترمینال تعاملی است، به روش عادی بخوانید
-        read -p "$prompt" user_input
-    else
-        # اگر ترمینال تعاملی نیست، از /dev/tty بخوانید
-        exec < /dev/tty
-        read -p "$prompt" user_input
-        exec <&-
-    fi
-
-    echo "${user_input:-$default_value}"
-}
 install_dependencies() {
     echo "Checking for system dependencies..."
 
@@ -86,7 +70,8 @@ install_dependencies() {
     echo "Checking for Python packages..."
 
     # پرسیدن از کاربر برای آپگرید pip
-    UPGRADE_PIP=$(read_from_tty "Do you want to upgrade pip to the latest version (Default NO)? (y/N): " "n")
+    read -p "Do you want to upgrade pip to the latest version (Default NO)? (y/N): " UPGRADE_PIP
+    UPGRADE_PIP=${UPGRADE_PIP:-n}
     if [[ "$UPGRADE_PIP" == "y" || "$UPGRADE_PIP" == "Y" ]]; then
         pip3 install --upgrade pip || { echo "Failed to upgrade pip."; exit 1; }
     else
