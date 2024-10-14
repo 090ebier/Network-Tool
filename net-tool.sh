@@ -1,10 +1,10 @@
 #!/bin/bash
-
+BASE_DIR=$(dirname "$(readlink -f "$0")")
 # Title of the script
 TITLE="Network Management Tool"
 
 # Use a dark theme dialog configuration file if it exists in the same directory
-export DIALOGRC=./dark_dialogrc
+export DIALOGRC="$BASE_DIR/dark_dialogrc"
 
 # Function to display a welcome message
 welcome_message() {
@@ -12,11 +12,11 @@ welcome_message() {
 }
 
 make_modules_executable() {
-    chmod +x ./network_config.sh
-    chmod +x ./firewall_management.sh
-    chmod +x ./ovs_management.sh
-    chmod +x ./network_monitoring.sh
-    chmod +x ./about_script.sh
+    chmod +x $BASE_DIR/Module/network_config.sh
+    chmod +x $BASE_DIR/Module/firewall_management.sh
+    chmod +x $BASE_DIR/Module/ovs_management.sh
+    chmod +x $BASE_DIR/Module/network_monitoring.sh
+    chmod +x $BASE_DIR/Module/about_script.sh
 }
 
 
@@ -30,106 +30,6 @@ determine_network_config() {
         echo "Unknown Configuration"
     fi
 }
-
-
-
-install_dependencies() {
-    # فایل موقت برای ذخیره خروجی
-    temp_log=$(mktemp)
-
-    # لیست ابزارهای مورد نیاز (غیر پایتونی)
-    dependencies=("dialog" "nload" "sysstat" "nftables" "net-tools" "openvswitch-switch" "tcpdump" "dnsutils" "iproute2" "ifstat" "python3" "python3-pip")
-
-    # لیست پکیج‌های پایتونی برای نصب با pip
-    python_packages=("matplotlib" "weasyprint" "requests")
-
-    # بررسی نوع مدیر بسته (apt برای توزیع‌های Debian/Ubuntu و yum برای توزیع‌های CentOS/RedHat)
-    echo "Checking for package manager..." | tee -a "$temp_log"
-    echo "----------------------------------------" | tee -a "$temp_log"
-    if command -v apt-get > /dev/null; then
-        installer="apt-get"
-        update_command="apt-get update -qq"
-        check_installed="dpkg -l"
-        install_flags="-y -qq"  # نصب بدون نمایش خروجی غیرضروری
-        echo "Detected apt-get as package manager." | tee -a "$temp_log"
-    elif command -v yum > /dev/null; then
-        installer="yum"
-        update_command="yum update -q"
-        check_installed="yum list installed"
-        install_flags="-y -q"  # نصب بدون نمایش خروجی غیرضروری
-        echo "Detected yum as package manager." | tee -a "$temp_log"
-    else
-        echo "Error: No compatible package manager found (apt or yum)." | tee -a "$temp_log"
-        exit 1
-    fi
-
-    # پرچم نصب بودن همه بسته‌ها
-    all_installed=true
-
-    # بررسی نصب بودن بسته‌های غیر پایتونی
-    echo "----------------------------------------" | tee -a "$temp_log"
-    echo "Checking system dependencies..." | tee -a "$temp_log"
-    for package in "${dependencies[@]}"; do
-        if $check_installed | grep -q "$package"; then
-            echo "$package is already installed." | tee -a "$temp_log"
-        else
-            echo "$package is missing and will be installed." | tee -a "$temp_log"
-            all_installed=false
-        fi
-    done
-
-    # به‌روزرسانی لیست بسته‌ها (فقط برای بسته‌های غیر پایتونی)
-    if ! $all_installed; then
-        echo "----------------------------------------" | tee -a "$temp_log"
-        echo "Updating package lists..." | tee -a "$temp_log"
-        sudo $update_command > /dev/null 2>&1
-    fi
-
-    # نصب وابستگی‌های غیر پایتونی
-    for package in "${dependencies[@]}"; do
-        if ! $check_installed | grep -q "$package"; then
-            echo "Installing $package..." | tee -a "$temp_log"
-            sudo $installer install $install_flags $package > /dev/null 2>&1
-            if [[ $? -eq 0 ]]; then
-                echo "$package installed successfully." | tee -a "$temp_log"
-            else
-                echo "Failed to install $package." | tee -a "$temp_log"
-                exit 1
-            fi
-        fi
-    done
-
-    # بررسی نصب بودن پکیج‌های پایتونی
-    echo "----------------------------------------" | tee -a "$temp_log"
-    echo "Checking Python dependencies..." | tee -a "$temp_log"
-    for py_package in "${python_packages[@]}"; do
-        if python3 -m pip show "$py_package" > /dev/null 2>&1; then
-            echo "Python package $py_package is already installed." | tee -a "$temp_log"
-        else
-            echo "Installing Python package: $py_package..." | tee -a "$temp_log"
-            python3 -m pip install "$py_package" > /dev/null 2>&1
-            if [[ $? -eq 0 ]]; then
-                echo "$py_package installed successfully." | tee -a "$temp_log"
-            else
-                echo "Failed to install Python package: $py_package." | tee -a "$temp_log"
-                exit 1
-            fi
-        fi
-    done
-
-    echo "----------------------------------------" | tee -a "$temp_log"
-    echo "All dependencies are installed successfully." | tee -a "$temp_log"
-    echo "----------------------------------------" | tee -a "$temp_log"
-
-    # نمایش فایل خروجی به کاربر
-    less "$temp_log"
-    # حذف فایل موقت بعد از نمایش
-    rm -f "$temp_log"
-}
-
-
-
-
 
 
 
@@ -156,11 +56,11 @@ main_menu() {
 
     choice=$(<tempfile)
     case $choice in
-        1) ./network_config.sh ;;        # فراخوانی اسکریپت جداگانه برای تنظیمات شبکه
-        2) ./firewall_management.sh ;;   # فراخوانی اسکریپت جداگانه برای مدیریت فایروال
-        3) ./ovs_management.sh ;;        # فراخوانی اسکریپت جداگانه برای Open vSwitch
-        4) ./network_monitoring.sh ;;    # فراخوانی اسکریپت جداگانه برای نظارت بر شبکه
-        5) ./about_script.sh ;;          # فراخوانی اسکریپت جداگانه برای اطلاعات اسکریپت
+        1) $BASE_DIR/Module/network_config.sh ;;        # فراخوانی اسکریپت جداگانه برای تنظیمات شبکه
+        2) $BASE_DIR/Module/firewall_management.sh ;;   # فراخوانی اسکریپت جداگانه برای مدیریت فایروال
+        3) $BASE_DIR/Module/ovs_management.sh ;;        # فراخوانی اسکریپت جداگانه برای Open vSwitch
+        4) $BASE_DIR/Module/network_monitoring.sh ;;    # فراخوانی اسکریپت جداگانه برای نظارت بر شبکه
+        5) $BASE_DIR/Module/about_script.sh ;;          # فراخوانی اسکریپت جداگانه برای اطلاعات اسکریپت
         6) exit_script ;;                # تابع داخلی برای خروج از برنامه
         *) echo "Invalid option"; main_menu ;;
     esac
@@ -177,6 +77,5 @@ exit_script() {
 trap "rm -f tempfile" EXIT
 
 # Start the script with a welcome message and display the main menu
-install_dependencies
 welcome_message
 main_menu

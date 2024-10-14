@@ -1,8 +1,18 @@
 #!/bin/bash
 
-# 1. کلون کردن پروژه از گیت‌هاب
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root (use sudo)."
+  exit 1
+fi
+
+# 1. مسیر نصب
 INSTALL_DIR="/opt/net-tool"
 REPO_URL="https://github.com/090ebier/Network-Tool.git"
+
+if [ -d "$INSTALL_DIR" ]; then
+    echo "Directory $INSTALL_DIR already exists. Removing the existing directory..."
+    sudo rm -rf $INSTALL_DIR || { echo "Failed to remove existing directory $INSTALL_DIR."; exit 1; }
+fi
 
 echo "Cloning the project from GitHub..."
 if sudo git clone $REPO_URL $INSTALL_DIR; then
@@ -12,7 +22,6 @@ else
     exit 1
 fi
 
-# 2. ایجاد symlink برای اجرای دستور net-tool از هر جا
 BIN_DIR="/usr/local/bin"
 echo "Creating symlink in $BIN_DIR..."
 if sudo ln -sf $INSTALL_DIR/net-tool.sh $BIN_DIR/net-tool; then
@@ -60,7 +69,13 @@ install_dependencies() {
 
     echo "Checking for Python packages..."
 
-    pip3 install --upgrade pip || { echo "Failed to upgrade pip."; exit 1; }
+    read -p "Do you want to upgrade pip to the latest version (Default NO)? (y/N): " UPGRADE_PIP
+    UPGRADE_PIP=${UPGRADE_PIP:-n}
+    if [[ "$UPGRADE_PIP" == "y" || "$UPGRADE_PIP" == "Y" ]]; then
+        pip3 install --upgrade pip || { echo "Failed to upgrade pip."; exit 1; }
+    else
+        echo "Skipping pip upgrade."
+    fi
 
     check_and_install_pip matplotlib
     check_and_install_pip weasyprint
@@ -85,5 +100,9 @@ else
     echo "$INSTALL_DIR/Module directory not found!"
     exit 1
 fi
+
+# حذف دایرکتوری پروژه بعد از نصب
+echo "Cleaning up installation files..."
+sudo rm -rf $INSTALL_DIR || { echo "Failed to remove installation directory $INSTALL_DIR."; exit 1; }
 
 echo "Installation complete! You can now run 'net-tool' from the terminal."
