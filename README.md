@@ -41,7 +41,8 @@ To install the **Network Management Tool**, follow the steps below:
    You can use the following command to clone and install the tool directly:
 
    ```bash
-   curl -Ls https://raw.githubusercontent.com/090ebier/Network-Tool/main/install.sh | sudo bash
+   curl -Ls https://raw.githubusercontent.com/090ebier/Network-Tool/main/install.sh -o /tmp/install.sh
+   sudo bash /tmp/install.sh
    ```
 
    Alternatively, you can download and run the installer manually:
@@ -80,15 +81,13 @@ Simply select the desired option, and the corresponding module or task will be e
 
 #### Updating the Tool
 
-To update the **Network Management Tool** to the latest version, select the "Install or Update Script" option from the main menu, or re-run the installer script:
+To update the **Network Management Tool** to the latest version, you can select the "Install or Update Script" option from the main menu (Option 5). This will automatically download and apply the latest updates from the GitHub repository.
+
+Alternatively, you can manually run the update command:
 
 ```bash
 curl -Ls https://raw.githubusercontent.com/090ebier/Network-Tool/main/install.sh -o /tmp/install.sh
 sudo bash /tmp/install.sh
-```
-
-This will download the latest version from the GitHub repository and update the tool.
-
 ---
 
 #### Uninstallation
