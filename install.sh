@@ -5,7 +5,6 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# 1. مسیر نصب
 INSTALL_DIR="/opt/net-tool"
 REPO_URL="https://github.com/090ebier/Network-Tool.git"
 
@@ -101,8 +100,5 @@ else
     exit 1
 fi
 
-# حذف دایرکتوری پروژه بعد از نصب
-echo "Cleaning up installation files..."
-sudo rm -rf $INSTALL_DIR || { echo "Failed to remove installation directory $INSTALL_DIR."; exit 1; }
 
 echo "Installation complete! You can now run 'net-tool' from the terminal."
