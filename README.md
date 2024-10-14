@@ -88,7 +88,7 @@ Alternatively, you can manually run the update command:
 ```bash
 curl -Ls https://raw.githubusercontent.com/090ebier/Network-Tool/main/install.sh -o /tmp/install.sh
 sudo bash /tmp/install.sh
----
+```
 
 #### Uninstallation
 
