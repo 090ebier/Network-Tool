@@ -16,7 +16,7 @@ make_modules_executable() {
     chmod +x $BASE_DIR/Module/firewall_management.sh
     chmod +x $BASE_DIR/Module/ovs_management.sh
     chmod +x $BASE_DIR/Module/network_monitoring.sh
-    chmod +x $BASE_DIR/Module/about_script.sh
+    chmod +x $BASE_DIR/install.sh
 }
 
 
@@ -51,7 +51,7 @@ main_menu() {
         2 "Firewall Management (NFTables)" \
         3 "Open vSwitch Management" \
         4 "Network Monitoring" \
-        5 "About Script" \
+        5 "Install Or Update Script" \
         6 "Exit" 2>tempfile
 
     choice=$(<tempfile)
@@ -60,7 +60,7 @@ main_menu() {
         2) $BASE_DIR/Module/firewall_management.sh ;;   # فراخوانی اسکریپت جداگانه برای مدیریت فایروال
         3) $BASE_DIR/Module/ovs_management.sh ;;        # فراخوانی اسکریپت جداگانه برای Open vSwitch
         4) $BASE_DIR/Module/network_monitoring.sh ;;    # فراخوانی اسکریپت جداگانه برای نظارت بر شبکه
-        5) $BASE_DIR/Module/about_script.sh ;;          # فراخوانی اسکریپت جداگانه برای اطلاعات اسکریپت
+        5) $BASE_DIR/install.sh ;;         
         6) exit_script ;;                # تابع داخلی برای خروج از برنامه
         *) echo "Invalid option"; main_menu ;;
     esac
@@ -76,6 +76,9 @@ exit_script() {
 # Clean up temporary file upon exit
 trap "rm -f tempfile" EXIT
 
+
+# Ensure all module scripts are executable
+make_modules_executable
 # Start the script with a welcome message and display the main menu
 welcome_message
 main_menu
