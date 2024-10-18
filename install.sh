@@ -1,8 +1,9 @@
 #!/bin/bash
 
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root (use sudo)."
-  exit 1
+    echo "This script requires root privileges. Restarting with sudo..."
+    exec sudo "$0" "$@"
+    exit 1
 fi
 
 # 1. مسیر نصب
