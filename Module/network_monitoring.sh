@@ -259,9 +259,8 @@ view_connections() {
                 fi
                 ;;
             5)
-                # خروج از برنامه
                 clear
-                 0
+                device_monitoring_submenu
                 ;;
         esac
     done
