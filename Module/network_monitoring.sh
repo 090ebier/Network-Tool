@@ -261,7 +261,7 @@ view_connections() {
             5)
                 # خروج از برنامه
                 clear
-                exit 0
+                 0
                 ;;
         esac
     done
@@ -386,6 +386,7 @@ function monitor_dns() {
                 ;;
 
             6)
+                device_monitoring_submenu
                 break
                 ;;
 
