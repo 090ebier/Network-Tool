@@ -36,7 +36,7 @@ manage_bridges() {
             if [ $? -ne 0 ]; then manage_bridges; fi  
 
             if [[ ! "$bridge_name" =~ ^[a-zA-Z0-9_-]{1,16}$ ]]; then
-                show_msg "\Zb\Z1Bridge name is invalid!\Zn\nUse only alphanumeric characters, hyphens, or underscores, and no more than 16 characters."
+                show_msg "Bridge name is invalid!\nUse only alphanumeric characters, hyphens, or underscores, and no more than 16 characters."
                 manage_bridges
             fi
 
@@ -142,7 +142,7 @@ function manage_ports() {
             # نمایش لیست بریج‌ها برای انتخاب
             bridges=$(sudo ovs-vsctl list-br)
             if [ -z "$bridges" ]; then
-                show_msg "\Zb\Z1No bridges available to add a port.\Zn"
+                show_msg "No bridges available to add a port."
                 manage_ports
                 return
             fi
@@ -195,7 +195,7 @@ function manage_ports() {
             # نمایش لیست بریج‌ها برای انتخاب
             bridges=$(sudo ovs-vsctl list-br)
             if [ -z "$bridges" ]; then
-                show_msg "\Zb\Z1No bridges available to delete a port from.\Zn"
+                show_msg "No bridges available to delete a port from."
                 manage_ports
                 return
             fi
@@ -213,7 +213,7 @@ function manage_ports() {
             # نمایش لیست پورت‌های بریج انتخاب شده
             ports=$(sudo ovs-vsctl list-ports $selected_bridge)
             if [ -z "$ports" ]; then
-                show_msg "\Zb\Z1No ports available to delete in bridge $selected_bridge.\Zn"
+                show_msg "No ports available to delete in bridge $selected_bridge."
                 manage_ports
                 return
             fi
@@ -237,7 +237,7 @@ function manage_ports() {
                 sudo ip link delete "$selected_port"  # حذف پورت از سیستم
                 show_msg "\Zb\Z3Port $selected_port deleted from bridge $selected_bridge.\Zn"
             else
-                show_msg "\Zb\Z1Deletion cancelled.\Zn"
+                show_msg "Deletion cancelled."
             fi
             manage_ports  # بازگشت به منوی مدیریت پورت‌ها
             ;;
@@ -326,7 +326,7 @@ function toggle_port() {
     if [ -z "$bridge" ]; then
         current_bridges=$(sudo ovs-vsctl list-br)
         if [ -z "$current_bridges" ]; then
-            show_msg "\Zb\Z1No bridges found.\Zn"
+            show_msg "No bridges found."
             toggle_port  # بازگشت به منوی مدیریت پورت‌ها
             return
         fi
@@ -340,7 +340,7 @@ function toggle_port() {
     else
         current_ports=$(sudo ovs-vsctl list-ports "$bridge")
         if [ -z "$current_ports" ]; then
-            show_msg "\Zb\Z1No ports found on bridge $bridge.\Zn"
+            show_msg "No ports found on bridge $bridge."
             toggle_port  # بازگشت به منوی مدیریت پورت‌ها
             return
         fi
@@ -390,7 +390,7 @@ function toggle_port() {
                     sudo ip link set "$port_choice" down
                     show_msg "\Zb\Z3Port $port_choice disabled.\Zn"
                 else
-                    show_msg "\Zb\Z1Action canceled.\Zn"
+                    show_msg "Action canceled."
                 fi
             else
                 dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z1Confirm Action\Zn" \
