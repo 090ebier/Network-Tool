@@ -1,4 +1,13 @@
 #!/bin/bash
+
+
+if [ "$EUID" -ne 0 ]; then
+    echo "This script requires root privileges. Restarting with sudo..."
+    exec sudo "$0" "$@"
+    exit 1
+fi
+
+
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 # Title of the script
 TITLE="Network Management Tool"
