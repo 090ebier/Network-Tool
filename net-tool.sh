@@ -65,11 +65,11 @@ main_menu() {
 
     choice=$(<tempfile)
     case $choice in
-        1) $BASE_DIR/Module/network_config.sh ;;        # فراخوانی اسکریپت جداگانه برای تنظیمات شبکه
-        2) $BASE_DIR/Module/firewall_management.sh ;;   # فراخوانی اسکریپت جداگانه برای مدیریت فایروال
-        3) $BASE_DIR/Module/ovs_management.sh ;;        # فراخوانی اسکریپت جداگانه برای Open vSwitch
-        4) $BASE_DIR/Module/network_monitoring.sh ;;    # فراخوانی اسکریپت جداگانه برای نظارت بر شبکه
-        5) $BASE_DIR/install.sh ;;         
+        1) clear;$BASE_DIR/Module/network_config.sh ;;        # فراخوانی اسکریپت جداگانه برای تنظیمات شبکه
+        2) clear;$BASE_DIR/Module/firewall_management.sh ;;   # فراخوانی اسکریپت جداگانه برای مدیریت فایروال
+        3) clear;$BASE_DIR/Module/ovs_management.sh ;;        # فراخوانی اسکریپت جداگانه برای Open vSwitch
+        4) clear;$BASE_DIR/Module/network_monitoring.sh ;;    # فراخوانی اسکریپت جداگانه برای نظارت بر شبکه
+        5) clear;$BASE_DIR/install.sh ;;         
         6) exit_script ;;                # تابع داخلی برای خروج از برنامه
         *) echo "Invalid option"; main_menu ;;
     esac
