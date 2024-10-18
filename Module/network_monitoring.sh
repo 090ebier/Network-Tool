@@ -1279,15 +1279,7 @@ view_logs() {
 
 
 #################################################################
-# تابع تعیین ابعاد ترمینال
-function get_terminal_size() {
-    term_height=$(tput lines)
-    term_width=$(tput cols)
-    dialog_height=$((term_height - 5))
-    dialog_width=$((term_width - 10))
-    if [ "$dialog_height" -lt 15 ]; then dialog_height=15; fi
-    if [ "$dialog_width" -lt 50 ]; then dialog_width=50; fi
-}
+
 
 # منوی اصلی
 function network_monitoring() {
@@ -1335,7 +1327,7 @@ function device_monitoring_submenu() {
             1) ping_devices ;;
             2) view_connections ;;
             3) monitor_dns ;;
-            4) break ;;  # بازگشت به منوی اصلی
+            4) network_monitoring;;  # بازگشت به منوی اصلی
         esac
     done
 }
@@ -1359,7 +1351,7 @@ function port_traffic_monitoring_submenu() {
             1) view_port_table ;;
             2) check_specific_port ;;
             3) monitor_ports_and_traffic ;;
-            4) break ;;  # بازگشت به منوی اصلی
+            4) network_monitoring;;  # بازگشت به منوی اصلی
         esac
     done
 }
@@ -1384,7 +1376,7 @@ function bandwidth_reports_submenu() {
             2) generate_bandwidth_graph ;;
             3) generate_pdf_report ;;
             4) save_and_send_report_via_telegram ;;
-            5) break ;;  
+            5) network_monitoring ;;  
         esac
     done
 }
@@ -1406,7 +1398,7 @@ function logs_resources_submenu() {
         case $choice in
             1) monitor_resources;;
             2) view_logs ;;
-            3) break ;;  
+            3) network_monitoring ;;  
         esac
     done
 }
