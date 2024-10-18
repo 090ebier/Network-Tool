@@ -28,26 +28,25 @@ manage_bridges() {
         2 "\Zb\Z2Delete Bridge\Zn" \
         3 "\Zb\Z2View Current Bridges\Zn" \
         4 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
-            if [ $? -ne 0 ]; then return; fi
+    
+    if [ $? -ne 0 ]; then return; fi  # Return if cancel or error
+
     case $action in
         1)
             # اضافه کردن بریج جدید
             bridge_name=$(dialog --inputbox "Enter bridge name to add (alphanumeric, hyphens or underscores, max 16 chars):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
-            if [ $? -ne 0 ]; then manage_bridges; fi  
+            if [ $? -ne 0 ]; then return; fi  # Cancel pressed, return to menu
 
             if [[ ! "$bridge_name" =~ ^[a-zA-Z0-9_-]{1,16}$ ]]; then
                 show_msg "Bridge name is invalid!\nUse only alphanumeric characters, hyphens, or underscores, and no more than 16 characters."
-                manage_bridges
+                return
             fi
 
             # بررسی موفقیت اجرای دستور اضافه کردن بریج
             if sudo ovs-vsctl add-br "$bridge_name"; then
                 show_msg "Bridge $bridge_name added successfully."
-                manage_bridges
-
             else
                 show_msg "Failed to add bridge $bridge_name. Please check OVS configuration."
-                manage_bridges
             fi
             ;;
 
@@ -56,12 +55,12 @@ manage_bridges() {
             current_bridges=$(sudo ovs-vsctl list-br)
             if [ -z "$current_bridges" ]; then
                 dialog --msgbox "No bridges currently exist." "$dialog_height" "$dialog_width"
-                manage_bridges
+                return
             fi
 
             # انتخاب بریج برای حذف
             bridge_to_delete=$(dialog --menu "Select a bridge to delete" "$dialog_height" "$dialog_width" 10 $(echo "$current_bridges" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
-            if [ $? -ne 0 ]; then continue; fi  
+            if [ $? -ne 0 ]; then return; fi  # Cancel pressed, return to menu
 
             # اگر بریجی انتخاب شد، سوال برای تایید حذف
             if [ -n "$bridge_to_delete" ]; then
@@ -71,14 +70,11 @@ manage_bridges() {
                 if [ $response -eq 0 ]; then
                     sudo ovs-vsctl del-br "$selected_bridge"
                     dialog --msgbox "Bridge $selected_bridge deleted successfully." "$dialog_height" "$dialog_width"
-                manage_bridges    
                 else
                     dialog --msgbox "Bridge deletion canceled." "$dialog_height" "$dialog_width"
-                manage_bridges
                 fi
             else
                 dialog --msgbox "No bridge selected for deletion." "$dialog_height" "$dialog_width"
-            manage_bridges
             fi
             ;;
 
@@ -106,15 +102,18 @@ manage_bridges() {
                 done
                 echo -e "$output" > /tmp/bridge_info.txt
                 dialog --textbox /tmp/bridge_info.txt "$dialog_height" "$dialog_width"
-                manage_bridges
             fi
             ;;
 
         4)
-            return  
+            return  # بازگشت به منوی اصلی
             ;;
     esac
+
+    # پس از انجام عملیات، به منوی مدیریت بریج بازگردید
+    manage_bridges
 }
+
 
 
 # نمایش پیام‌ها به کاربر
