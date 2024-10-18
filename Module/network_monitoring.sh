@@ -129,7 +129,7 @@ view_connections() {
             2 "\Zb\Z2View Listening Ports\Zn" \
             3 "\Zb\Z2Filter by Port or Protocol\Zn" \
             4 "\Zb\Z2View Saved Outputs\Zn" \
-            5 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            5 "\Zb\Z1Exit\Zn" 3>&1 1>&2 2>&3)
 
         case $filter in
             1)
@@ -283,7 +283,7 @@ function monitor_dns() {
             3 "\Zb\Z2Clear DNS Cache\Zn" \
             4 "\Zb\Z2View DNS Cache\Zn" \
             5 "\Zb\Z2View Saved DNS Logs\Zn" \
-            6 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            6 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $action in
             1)
@@ -1089,7 +1089,7 @@ monitor_resources() {
         2 "\Zb\Z2Memory Usage\Zn" \
         3 "\Zb\Z2Disk Usage\Zn" \
         4 "\Zb\Z2Network Usage (Nload in terminal, no log)\Zn" \
-        5 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+        5 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
     # مدیریت انتخاب نامعتبر یا لغو
     if [[ -z "$choice" ]]; then
@@ -1298,7 +1298,7 @@ function network_monitoring() {
             2 "\Zb\Z2Port and Traffic Monitoring\Zn" \
             3 "\Zb\Z2Bandwidth Monitoring and Reports\Zn" \
             4 "\Zb\Z2Logs and Resources\Zn" \
-            5 "\Zb\Z1Exit\Zn" 3>&1 1>&2 2>&3)
+            5 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
             break  # خروج در صورت فشردن کلید کنسل
@@ -1324,7 +1324,7 @@ function device_monitoring_submenu() {
             1 "\Zb\Z2Ping Devices\Zn" \
             2 "\Zb\Z2View Connections\Zn" \
             3 "\Zb\Z2Monitor DNS\Zn" \
-            4 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
             break  # خروج در صورت فشردن کلید کنسل
@@ -1348,7 +1348,7 @@ function port_traffic_monitoring_submenu() {
             1 "\Zb\Z2View Port Table\Zn" \
             2 "\Zb\Z2Check Specific Port\Zn" \
             3 "\Zb\Z2Monitor Ports and Traffic\Zn" \
-            4 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
             break  # خروج در صورت فشردن کلید کنسل
@@ -1372,7 +1372,7 @@ function bandwidth_reports_submenu() {
             2 "\Zb\Z2Generate Bandwidth Graph\Zn" \
             3 "\Zb\Z2Generate PDF Report\Zn" \
             4 "\Zb\Z2Save and Send Report\Zn" \
-            5 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            5 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
             break 
@@ -1396,7 +1396,7 @@ function logs_resources_submenu() {
             --menu "\nChoose an option:" "$dialog_height" "$dialog_width" 10 \
             1 "\Zb\Z2Monitor Resources\Zn" \
             2 "\Zb\Z2View Logs\Zn" \
-            3 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
             break  
