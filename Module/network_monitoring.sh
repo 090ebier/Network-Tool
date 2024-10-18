@@ -129,7 +129,7 @@ view_connections() {
             2 "\Zb\Z2View Listening Ports\Zn" \
             3 "\Zb\Z2Filter by Port or Protocol\Zn" \
             4 "\Zb\Z2View Saved Outputs\Zn" \
-            5 "\Zb\Z1Exit\Zn" 3>&1 1>&2 2>&3)
+            5 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $filter in
             1)
