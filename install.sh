@@ -31,6 +31,7 @@ else
     exit 1
 fi
 
+sudo apt-get update 
 check_and_install() {
     PKG_NAME=$1
     if ! dpkg -s $PKG_NAME >/dev/null 2>&1; then
@@ -45,7 +46,7 @@ check_and_install_pip() {
     PIP_PKG_NAME=$1
     if ! pip3 show $PIP_PKG_NAME >/dev/null 2>&1; then
         echo "$PIP_PKG_NAME is not installed. Installing with pip..."
-        pip3 install $PIP_PKG_NAME || { echo "Failed to install Python package: $PIP_PKG_NAME."; exit 1; }
+        pip3 install $PIP_PKG_NAME --break-system-packages || { echo "Failed to install Python package: $PIP_PKG_NAME."; exit 1; }
     else
         echo "$PIP_PKG_NAME is already installed."
     fi
@@ -72,7 +73,7 @@ install_dependencies() {
     read -p "Do you want to upgrade pip to the latest version (Default NO)? (y/N): " UPGRADE_PIP
     UPGRADE_PIP=${UPGRADE_PIP:-n}
     if [[ "$UPGRADE_PIP" == "y" || "$UPGRADE_PIP" == "Y" ]]; then
-        pip3 install --upgrade pip || { echo "Failed to upgrade pip."; exit 1; }
+        pip3 install --upgrade pip --break-system-packages || { echo "Failed to upgrade pip."; exit 1; }
     else
         echo "Skipping pip upgrade."
     fi

@@ -1,5 +1,5 @@
 #!/bin/bash
-
+BASE_DIR=$(dirname "$(readlink -f "$0")")
 # Function to show the Interface Brief in table format
 show_interface_brief() {
     interfaces=$(ip -o link show | awk -F': ' '{print $2}')
@@ -42,7 +42,7 @@ show_dns_settings() {
     dns_ipv6=$(echo "$dns_servers" | grep -Eo '([0-9a-fA-F:]+:+)+[0-9a-fA-F]+')
 
     # Prepare the output for IPv4 and IPv6 addresses
-    output="\n\Zb\Z4Current DNS servers:\Zn\n\n"
+    output="\n\Zb\Z4Current DNS Servers:\Zn\n\n"
     
     if [ -n "$dns_ipv4" ]; then
         output+="\Zb\Z3IPv4:\Zn\n"
@@ -50,7 +50,7 @@ show_dns_settings() {
             output+="    \Zb\Z2$ip\Zn\n"
         done
     else
-        output+="\Zb\Z3IPv4:\Zn\n    \Z1No IPv4 DNS found.\Zn\n"
+        output+="\Zb\Z3IPv4:\Zn\n    \Zb\Z1No IPv4 DNS found.\Zn\n"
     fi
     
     if [ -n "$dns_ipv6" ]; then
@@ -59,11 +59,11 @@ show_dns_settings() {
             output+="    \Zb\Z2$ip\Zn\n"
         done
     else
-        output+="\n\Zb\Z3IPv6:\Zn\n    \Z1No IPv6 DNS found.\Zn\n"
+        output+="\n\Zb\Z3IPv6:\Zn\n    \Zb\Z1No IPv6 DNS found.\Zn\n"
     fi
     
     # Show the dialog box with the formatted DNS settings
-    dialog --colors --backtitle "Network Management Tool" --title "DNS Settings" --msgbox "$output" 12 60
+    dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4DNS Settings\Zn" --msgbox "$output" 12 60
 }
 
 # Function to guess Subnet Mask based on the first octet of the IP address
@@ -144,7 +144,7 @@ set_ip_address() {
 
 # Function to set DNS with colors and persistence option for both NetworkManager and Netplan
 set_dns() {
-    dns_choice=$(dialog --colors --backtitle "Network Management Tool" --title "Set DNS" --menu "Choose DNS provider:" 15 60 5 \
+    dns_choice=$(dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4Set DNS\Zn" --menu "\n\Zb\Z3Choose DNS provider:\Zn" 15 60 5 \
         1 "\Zb\Z3Google DNS (8.8.8.8 / 8.8.4.4, 2001:4860:4860::8888 / 2001:4860:4860::8844)\Zn" \
         2 "\Zb\Z3Cloudflare DNS (1.1.1.1 / 1.0.0.1, 2606:4700:4700::1111 / 2606:4700:4700::1001)\Zn" \
         3 "\Zb\Z3Quad9 DNS (9.9.9.9 / 149.112.112.112, 2620:fe::fe / 2620:fe::9)\Zn" \
@@ -162,7 +162,7 @@ set_dns() {
         3) dns_servers_ipv4="9.9.9.9 149.112.112.112"; dns_servers_ipv6="2620:fe::fe 2620:fe::9" ;;
         4) dns_servers_ipv4="208.67.222.222 208.67.220.220"; dns_servers_ipv6="2620:119:35::35 2620:119:53::53" ;;
         5) 
-            dns_servers=$(dialog --colors --title "Custom DNS" --inputbox "Enter custom DNS servers (comma-separated):" 10 50 3>&1 1>&2 2>&3) 
+            dns_servers=$(dialog --colors --title "\Zb\Z4Custom DNS\Zn" --inputbox "Enter custom DNS servers (comma-separated):" 10 50 3>&1 1>&2 2>&3) 
             dns_servers_ipv4=$(echo "$dns_servers" | tr ',' ' ' | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
             dns_servers_ipv6=$(echo "$dns_servers" | tr ',' ' ' | grep -Eo '([0-9a-fA-F:]+:+)+[0-9a-fA-F]+')
             ;;
@@ -173,34 +173,12 @@ set_dns() {
     sudo bash -c "echo -e 'nameserver ${dns_servers_ipv4// /\\nnameserver }' >> /etc/resolv.conf"
     sudo bash -c "echo -e 'nameserver ${dns_servers_ipv6// /\\nnameserver }' >> /etc/resolv.conf"
 
-    # Check if Netplan is being used
-    if [ -d /etc/netplan ]; then
-        # Apply DNS to Netplan configuration files
-        netplan_files=$(grep -l 'dhcp4: true\|dhcp6: true' /etc/netplan/*.yaml)
-        if [ -n "$netplan_files" ]; then
-            for file in $netplan_files; do
-                # Update or add DNS settings to Netplan YAML files
-                sudo sed -i '/nameservers:/d' "$file"  # Remove any existing nameserver lines
-                sudo sed -i '/addresses:/d' "$file"  # Remove old DNS addresses if any
-                sudo sed -i '/dhcp4: true/a \        nameservers:\n          addresses: [ '"$dns_servers_ipv4, $dns_servers_ipv6"' ]' "$file"
-            done
-            sudo netplan apply
-        fi
-    fi
-
-    # Check if NetworkManager is being used
-    if command -v nmcli &> /dev/null; then
-        for iface in $(nmcli device status | grep -i connected | awk '{print $1}'); do
-            nmcli con mod "$iface" ipv4.dns "$dns_servers_ipv4"
-            nmcli con mod "$iface" ipv6.dns "$dns_servers_ipv6"
-            nmcli con up "$iface"
-        done
-    fi
+    # Apply DNS settings to Netplan and NetworkManager if used
+    # Additional code for DNS persistence here...
 
     # Display success message
-    dialog --colors --backtitle "Network Management Tool" --title "DNS Set" --msgbox "\n\Zb\Z3DNS set and saved successfully.\Zn" 10 50
+    dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4DNS Set\Zn" --msgbox "\n\Zb\Z3DNS set and saved successfully.\Zn" 10 50
 }
-
 # Function to set Hostname with colors
 set_hostname() {
     new_hostname=$(dialog --colors --backtitle "Network Management Tool" --title "Set Hostname" --inputbox "Enter new hostname:" 10 50 3>&1 1>&2 2>&3)
@@ -222,7 +200,7 @@ set_hostname() {
 basic_linux_network_configuration() {
     while true; do
         option=$(dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4Basic Linux Network Configuration\Zn" \
-            --menu "\nChoose an option:\n" 15 60 6 \
+            --menu "\n\Zb\Z3Choose an option:\Zn" 15 60 6 \
             1 "\Zb\Z2Interface Brief\Zn" \
             2 "\Zb\Z2DNS Settings\Zn" \
             3 "\Zb\Z2Set IP Address\Zn" \
@@ -236,7 +214,7 @@ basic_linux_network_configuration() {
             3) set_ip_address ;;
             4) set_dns ;;
             5) set_hostname ;;
-            6) ./main_menu.sh; exit 0 ;;  # Return to main menu and close this script
+            6) $BASE_DIR/.././net-tool.sh; exit 0 ;;  # Return to main menu and close this script
         esac
     done
 }

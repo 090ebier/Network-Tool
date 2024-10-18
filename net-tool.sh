@@ -47,12 +47,12 @@ main_menu() {
     SYSTEM_INFO="OS Version: \Zb\Z4$OS_VERSION\Zn\nHostname: \Zb\Z4$HOSTNAME\Zn\nCPU: \Zb\Z3$CPU_MODEL\Zn\nRAM: \Zb\Z3$RAM_TOTAL used: \Zb\Z3$RAM_USED\Zn\nDisk: \Zb\Z3$DISK_TOTAL used: \Zb\Z3$DISK_USED\Zn\nNetwork Config: \Zb\Z1$NETWORK_CONFIG\Zn"
 
     dialog --colors --backtitle "$TITLE" --title "$TITLE" --menu "$SYSTEM_INFO\n\n\Zb\Z0Choose an option:\Zn" 20 70 6 \
-        1 "Basic Linux Network Configuration" \
-        2 "Firewall Management (NFTables)" \
-        3 "Open vSwitch Management" \
-        4 "Network Monitoring" \
-        5 "Install Or Update Script" \
-        6 "Exit" 2>tempfile
+        1 "\Zb\Z2Basic Linux Network Configuration\Zn" \
+        2 "\Zb\Z2Firewall Management (NFTables)\Zn" \
+        3 "\Zb\Z2Open vSwitch Management\Zn" \
+        4 "\Zb\Z2Network Monitoring\Zn" \
+        5 "\Zb\Z2Install Or Update Script\Zn" \
+        6 "\Zb\Z1Exit\Zn" 2>tempfile
 
     choice=$(<tempfile)
     case $choice in

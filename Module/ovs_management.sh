@@ -1,6 +1,16 @@
 #!/bin/bash
-
+BASE_DIR=$(dirname "$(readlink -f "$0")")
 TITLE="Open vSwitch Management"
+
+# Function to dynamically get terminal size
+get_terminal_size() {
+    term_height=$(tput lines)
+    term_width=$(tput cols)
+    dialog_height=$((term_height - 5))
+    dialog_width=$((term_width - 10))
+    if [ "$dialog_height" -lt 15 ]; then dialog_height=15; fi
+    if [ "$dialog_width" -lt 50 ]; then dialog_width=50; fi
+}
 
 function show_msg() {
     dialog --msgbox "$1" 10 40
@@ -9,120 +19,151 @@ function show_msg() {
 
 
 # 1. Add/Delete/View Bridges
-function manage_bridges() {
+manage_bridges() {
+    get_terminal_size
     # منوی مدیریت بریج‌ها
-    action=$(dialog --menu "Manage OVS Bridges" 15 60 5 \
-        1 "Add Bridge" \
-        2 "Delete Bridge" \
-        3 "View Current Bridges" \
-        4 "Back to Main Menu" 3>&1 1>&2 2>&3)
-
+    action=$(dialog --colors --backtitle "\Zb\Z4OVS Bridge Management\Zn" --title "\Zb\Z3Manage OVS Bridges\Zn" \
+        --menu "\n\Zb\Z3Choose an action:\Zn" "$dialog_height" "$dialog_width" 5 \
+        1 "\Zb\Z2Add Bridge\Zn" \
+        2 "\Zb\Z2Delete Bridge\Zn" \
+        3 "\Zb\Z2View Current Bridges\Zn" \
+        4 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then return; fi
     case $action in
         1)
             # اضافه کردن بریج جدید
-            bridge_name=$(dialog --inputbox "Enter bridge name to add (alphanumeric, hyphens or underscores, max 16 chars):" 10 50 3>&1 1>&2 2>&3)
+            bridge_name=$(dialog --inputbox "Enter bridge name to add (alphanumeric, hyphens or underscores, max 16 chars):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then manage_bridges; fi  
+
             if [[ ! "$bridge_name" =~ ^[a-zA-Z0-9_-]{1,16}$ ]]; then
-                show_msg "Bridge name is invalid! Use only alphanumeric characters, hyphens, or underscores, and no more than 16 characters."
-                return
+                show_msg "\Zb\Z1Bridge name is invalid!\Zn\nUse only alphanumeric characters, hyphens, or underscores, and no more than 16 characters."
+                manage_bridges
             fi
 
             # بررسی موفقیت اجرای دستور اضافه کردن بریج
             if sudo ovs-vsctl add-br "$bridge_name"; then
                 show_msg "Bridge $bridge_name added successfully."
+                manage_bridges
+
             else
                 show_msg "Failed to add bridge $bridge_name. Please check OVS configuration."
+                manage_bridges
             fi
             ;;
-2)
-    # نمایش لیست بریج‌ها برای حذف
-    current_bridges=$(sudo ovs-vsctl list-br)
-    if [ -z "$current_bridges" ]; then
-        dialog --msgbox "No bridges currently exist." 10 40
-        return
-    fi
 
-    # انتخاب بریج برای حذف
-    bridge_to_delete=$(dialog --menu "Select a bridge to delete" 15 60 10 $(echo "$current_bridges" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
-
-    # اگر بریجی انتخاب شد، سوال برای تایید حذف
-    if [ -n "$bridge_to_delete" ]; then
-        selected_bridge=$(echo "$current_bridges" | sed -n "${bridge_to_delete}p")
-        dialog --yesno "Are you sure you want to delete the bridge: $selected_bridge?" 10 40
-        response=$?  # گرفتن نتیجه از dialog --yesno
-        if [ $response -eq 0 ]; then
-            # اگر کاربر تایید کرد
-            sudo ovs-vsctl del-br "$selected_bridge"
-            dialog --msgbox "Bridge $selected_bridge deleted successfully." 10 40
-        else
-            dialog --msgbox "Bridge deletion canceled." 10 40
-        fi
-    else
-        dialog --msgbox "No bridge selected for deletion." 10 40
-    fi
-    ;;
-
-
-3)
-    # نمایش بریج‌های موجود
-    current_bridges=$(sudo ovs-vsctl list-br)
-    if [ -z "$current_bridges" ]; then
-        dialog --msgbox "No bridges currently exist." 10 40
-    else
-        # نمایش بریج‌ها به صورت جدولی به همراه VLANها
-        output="| Bridge Name   | Status   | Ports | VLANs   |\n"
-        output+="|---------------|----------|-------|---------|\n"
-        for bridge in $current_bridges; do
-            status=$(sudo ovs-vsctl br-exists "$bridge" && echo "Active" || echo "Inactive")
-            port_count=$(sudo ovs-vsctl list-ports "$bridge" | wc -l)
-            
-            # دریافت اطلاعات VLAN برای هر بریج
-            vlans=$(sudo ovs-vsctl list port | grep -A 10 "Bridge \"$bridge\"" | grep "tag:" | awk '{print $2}' | tr '\n' ',' | sed 's/,$//')
-
-            if [ -z "$vlans" ]; then
-                vlans="None"  # اگر VLAN وجود نداشت
+        2)
+            # نمایش لیست بریج‌ها برای حذف
+            current_bridges=$(sudo ovs-vsctl list-br)
+            if [ -z "$current_bridges" ]; then
+                dialog --msgbox "No bridges currently exist." "$dialog_height" "$dialog_width"
+                manage_bridges
             fi
 
-            output+="| $(printf '%-13s' $bridge) | $(printf '%-8s' $status) | $(printf '%-5s' $port_count) | $(printf '%-7s' $vlans) |\n"
-        done
-        echo -e "$output" > /tmp/bridge_info.txt
-        dialog --textbox /tmp/bridge_info.txt 20 50
-    fi
-    ;;
+            # انتخاب بریج برای حذف
+            bridge_to_delete=$(dialog --menu "Select a bridge to delete" "$dialog_height" "$dialog_width" 10 $(echo "$current_bridges" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then continue; fi  
 
+            # اگر بریجی انتخاب شد، سوال برای تایید حذف
+            if [ -n "$bridge_to_delete" ]; then
+                selected_bridge=$(echo "$current_bridges" | sed -n "${bridge_to_delete}p")
+                dialog --yesno "Are you sure you want to delete the bridge: $selected_bridge?" "$dialog_height" "$dialog_width"
+                response=$?
+                if [ $response -eq 0 ]; then
+                    sudo ovs-vsctl del-br "$selected_bridge"
+                    dialog --msgbox "Bridge $selected_bridge deleted successfully." "$dialog_height" "$dialog_width"
+                manage_bridges    
+                else
+                    dialog --msgbox "Bridge deletion canceled." "$dialog_height" "$dialog_width"
+                manage_bridges
+                fi
+            else
+                dialog --msgbox "No bridge selected for deletion." "$dialog_height" "$dialog_width"
+            manage_bridges
+            fi
+            ;;
+
+        3)
+            # نمایش بریج‌های موجود
+            current_bridges=$(sudo ovs-vsctl list-br)
+            if [ -z "$current_bridges" ]; then
+                dialog --msgbox "No bridges currently exist." "$dialog_height" "$dialog_width"
+            else
+                # نمایش بریج‌ها به صورت جدولی به همراه VLANها
+                output="| Bridge Name   | Status   | Ports | VLANs   |\n"
+                output+="|---------------|----------|-------|---------|\n"
+                for bridge in $current_bridges; do
+                    status=$(sudo ovs-vsctl br-exists "$bridge" && echo "Active" || echo "Inactive")
+                    port_count=$(sudo ovs-vsctl list-ports "$bridge" | wc -l)
+
+                    # دریافت اطلاعات VLAN برای هر بریج
+                    vlans=$(sudo ovs-vsctl list port | grep -A 10 "Bridge \"$bridge\"" | grep "tag:" | awk '{print $2}' | tr '\n' ',' | sed 's/,$//')
+
+                    if [ -z "$vlans" ]; then
+                        vlans="None"  # اگر VLAN وجود نداشت
+                    fi
+
+                    output+="| $(printf '%-13s' $bridge) | $(printf '%-8s' $status) | $(printf '%-5s' $port_count) | $(printf '%-7s' $vlans) |\n"
+                done
+                echo -e "$output" > /tmp/bridge_info.txt
+                dialog --textbox /tmp/bridge_info.txt "$dialog_height" "$dialog_width"
+                manage_bridges
+            fi
+            ;;
 
         4)
-            return  # بازگشت به منوی اصلی
+            return  
             ;;
     esac
 }
+
+
 # نمایش پیام‌ها به کاربر
 function show_msg() {
     dialog --msgbox "$1" 10 40
 }
  # 2. Add/Delete Ports and View Port Status with Selections
 function manage_ports() {
-    action=$(dialog --menu "Manage OVS Ports" 15 60 4 \
-        1 "Add Port" \
-        2 "Delete Port" \
-        3 "View Ports Status" \
-        4 "Back to Main Menu" 3>&1 1>&2 2>&3)
+    get_terminal_size  # به‌روزرسانی ابعاد ترمینال
+    action=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Manage OVS Ports\Zn" \
+        --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 4 \
+        1 "\Zb\Z2Add Port\Zn" \
+        2 "\Zb\Z2Delete Port\Zn" \
+        3 "\Zb\Z2View Ports Status\Zn" \
+        4 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+
+    # بررسی لغو عملیات توسط کاربر
+    if [ $? -ne 0 ]; then
+        manage_ports  # بازگشت به منوی مدیریت پورت‌ها
+        return
+    fi
 
     case $action in
         1)
             # نمایش لیست بریج‌ها برای انتخاب
             bridges=$(sudo ovs-vsctl list-br)
             if [ -z "$bridges" ]; then
-                show_msg "No bridges available to add a port."
+                show_msg "\Zb\Z1No bridges available to add a port.\Zn"
+                manage_ports
                 return
             fi
 
-            bridge=$(dialog --menu "Select Bridge to Add Port" 15 60 10 $(echo "$bridges" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
+            bridge=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Select Bridge\Zn" \
+                --menu "\nSelect a Bridge to Add Port:" "$dialog_height" "$dialog_width" 10 $(echo "$bridges" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
+            
+            if [ $? -ne 0 ]; then
+                manage_ports  # بازگشت به منوی مدیریت پورت‌ها
+                return
+            fi
+
             selected_bridge=$(echo "$bridges" | sed -n "${bridge}p")
 
             # وارد کردن نام پورت
-            port=$(dialog --inputbox "Enter port name to add:" 10 30 3>&1 1>&2 2>&3)
-            if [ -z "$port" ]; then
-                show_msg "Port name cannot be empty!"
+            port=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Add Port\Zn" \
+                --inputbox "\nEnter port name to add:" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+            
+            if [ $? -ne 0 ] || [ -z "$port" ]; then
+                show_msg "\Zb\Z1Port name cannot be empty!\Zn"
+                manage_ports
                 return
             fi
 
@@ -131,53 +172,85 @@ function manage_ports() {
             sudo ip link set "$port" up
 
             # پرسش در مورد VLAN (اختیاری)
-            vlan=$(dialog --inputbox "Enter VLAN ID (optional, leave blank for none):" 10 30 3>&1 1>&2 2>&3)
+            vlan=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3VLAN Configuration\Zn" \
+                --inputbox "\nEnter VLAN ID (optional, leave blank for none):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+            
+            if [ $? -ne 0 ]; then
+                manage_ports
+                return
+            fi
 
             # افزودن پورت به بریج و VLAN
             sudo ovs-vsctl add-port $selected_bridge $port
             if [ -n "$vlan" ]; then
                 sudo ovs-vsctl set port $port tag=$vlan
-                show_msg "Port $port added to bridge $selected_bridge with VLAN $vlan."
+                show_msg "\Zb\Z3Port $port added to bridge $selected_bridge with VLAN $vlan.\Zn"
             else
-                show_msg "Port $port added to bridge $selected_bridge without VLAN."
+                show_msg "\Zb\Z3Port $port added to bridge $selected_bridge without VLAN.\Zn"
             fi
+            manage_ports  # بازگشت به منوی مدیریت پورت‌ها
             ;;
 
         2)
             # نمایش لیست بریج‌ها برای انتخاب
             bridges=$(sudo ovs-vsctl list-br)
             if [ -z "$bridges" ]; then
-                show_msg "No bridges available to delete a port from."
+                show_msg "\Zb\Z1No bridges available to delete a port from.\Zn"
+                manage_ports
                 return
             fi
 
-            bridge=$(dialog --menu "Select Bridge to Delete Port From" 15 60 10 $(echo "$bridges" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
+            bridge=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Select Bridge\Zn" \
+                --menu "\nSelect a Bridge to Delete Port From:" "$dialog_height" "$dialog_width" 10 $(echo "$bridges" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
+            
+            if [ $? -ne 0 ]; then
+                manage_ports
+                return
+            fi
+
             selected_bridge=$(echo "$bridges" | sed -n "${bridge}p")
 
             # نمایش لیست پورت‌های بریج انتخاب شده
             ports=$(sudo ovs-vsctl list-ports $selected_bridge)
             if [ -z "$ports" ]; then
-                show_msg "No ports available to delete in bridge $selected_bridge."
+                show_msg "\Zb\Z1No ports available to delete in bridge $selected_bridge.\Zn"
+                manage_ports
                 return
             fi
 
-            port_to_delete=$(dialog --menu "Select Port to Delete" 15 60 10 $(echo "$ports" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
+            port_to_delete=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Select Port\Zn" \
+                --menu "\nSelect a Port to Delete:" "$dialog_height" "$dialog_width" 10 $(echo "$ports" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
+            
+            if [ $? -ne 0 ]; then
+                manage_ports
+                return
+            fi
+
             selected_port=$(echo "$ports" | sed -n "${port_to_delete}p")
 
             # تایید حذف
-            dialog --yesno "Are you sure you want to delete port $selected_port from bridge $selected_bridge?" 10 30
+            dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z1Confirm Deletion\Zn" \
+                --yesno "\nAre you sure you want to delete port $selected_port from bridge $selected_bridge?" "$dialog_height" "$dialog_width"
+
             if [ $? -eq 0 ]; then
                 sudo ovs-vsctl del-port $selected_bridge $selected_port
                 sudo ip link delete "$selected_port"  # حذف پورت از سیستم
-                show_msg "Port $selected_port deleted from bridge $selected_bridge."
+                show_msg "\Zb\Z3Port $selected_port deleted from bridge $selected_bridge.\Zn"
             else
-                show_msg "Deletion cancelled."
+                show_msg "\Zb\Z1Deletion cancelled.\Zn"
             fi
+            manage_ports  # بازگشت به منوی مدیریت پورت‌ها
             ;;
 
         3)
             # نمایش وضعیت پورت‌ها
-            bridge=$(dialog --inputbox "Enter bridge name to view port status (Leave empty to view all):" 10 30 3>&1 1>&2 2>&3)
+            bridge=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3View Port Status\Zn" \
+                --inputbox "\nEnter bridge name to view port status (Leave empty to view all):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+
+            if [ $? -ne 0 ]; then
+                manage_ports
+                return
+            fi
 
             output="| Bridge Name   | Port Name     | Admin State | Link State |\n"
             output+="----------------------------------------------------------\n"
@@ -186,8 +259,9 @@ function manage_ports() {
                 # اگر بریج مشخص نشده باشد، همه بریج‌ها و پورت‌ها نمایش داده می‌شوند
                 current_bridges=$(sudo ovs-vsctl list-br)
                 if [ -z "$current_bridges" ]; then
-                    dialog --msgbox "No bridges currently exist." 10 30
-                    exit 0
+                    show_msg "\Zb\Z1No bridges currently exist.\Zn"
+                    manage_ports
+                    return
                 fi
 
                 for current_bridge in $current_bridges; do
@@ -198,22 +272,24 @@ function manage_ports() {
                         for port in $current_ports; do
                             admin_state=$(sudo ovs-vsctl get Interface "$port" admin_state)
                             link_state=$(sudo ovs-vsctl get Interface "$port" link_state)
-                            output+="$current_bridge        $port       $admin_state   $link_state\n"
+                            output+="$current_bridge          $port        $admin_state     $link_state\n"
                         done
                     fi
                 done
             else
                 # اگر بریج مشخص شده باشد، بررسی وجود آن بریج
                 if ! sudo ovs-vsctl br-exists "$bridge"; then
-                    dialog --msgbox "Bridge $bridge does not exist." 10 30
-                    exit 0
+                    show_msg "Bridge $bridge does not exist"
+                    manage_ports
+                    return
                 fi
 
                 # نمایش وضعیت پورت‌های بریج مشخص شده
                 current_ports=$(sudo ovs-vsctl list-ports "$bridge")
                 if [ -z "$current_ports" ]; then
-                    dialog --msgbox "No ports found on bridge $bridge." 10 30
-                    exit 0
+                    show_msg "No ports found on bridge $bridge."
+                    manage_ports
+                    return
                 fi
 
                 for port in $current_ports; do
@@ -223,12 +299,15 @@ function manage_ports() {
                 done
             fi
 
-            # نمایش خروجی در dialog --msgbox
-            dialog --msgbox "$output" 20 60
+            # نمایش خروجی در dialog --textbox
+            echo -e "$output" > /tmp/port_status.txt
+            dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Port Status\Zn" --textbox /tmp/port_status.txt "$dialog_height" "$dialog_width"
+            rm /tmp/port_status.txt
+            manage_ports 
             ;;
 
         4)
-            return  # بازگشت به منوی اصلی
+            return  
             ;;
     esac
 }
@@ -236,34 +315,47 @@ function manage_ports() {
 
 # 3. Enable/Disable Ports with ip link
 function toggle_port() {
-    bridge=$(dialog --inputbox "Enter bridge name to view ports (or leave empty to view all):" 10 40 3>&1 1>&2 2>&3)
+    get_terminal_size  # به‌روزرسانی ابعاد ترمینال
+    bridge=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Enter Bridge Name\Zn" \
+        --inputbox "\nEnter bridge name to view ports (or leave empty to view all):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+
+    if [ $? -ne 0 ]; then
+        return  # اگر کاربر عملیات را لغو کرد
+    fi
 
     if [ -z "$bridge" ]; then
         current_bridges=$(sudo ovs-vsctl list-br)
+        if [ -z "$current_bridges" ]; then
+            show_msg "\Zb\Z1No bridges found.\Zn"
+            toggle_port  # بازگشت به منوی مدیریت پورت‌ها
+            return
+        fi
         port_list=()
         for bridge in $current_bridges; do
             ports=$(sudo ovs-vsctl list-ports "$bridge")
             for port in $ports; do
-                port_list+=("$port" "$bridge")
+                port_list+=("$port" "Bridge: $bridge")
             done
         done
     else
         current_ports=$(sudo ovs-vsctl list-ports "$bridge")
         if [ -z "$current_ports" ]; then
-            show_msg "No ports found on bridge $bridge."
+            show_msg "\Zb\Z1No ports found on bridge $bridge.\Zn"
+            toggle_port  # بازگشت به منوی مدیریت پورت‌ها
             return
         fi
         port_list=()
         for port in $current_ports; do
-            port_list+=("$port" "$bridge")
+            port_list+=("$port" "Bridge: $bridge")
         done
     fi
 
     # نمایش لیست پورت‌ها برای انتخاب
-    port_choice=$(dialog --menu "Select a port to toggle" 15 60 10 "${port_list[@]}" 3>&1 1>&2 2>&3)
+    port_choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Select Port to Toggle\Zn" \
+        --menu "\nSelect a port to toggle:" "$dialog_height" "$dialog_width" 10 "${port_list[@]}" 3>&1 1>&2 2>&3)
 
-    if [ -z "$port_choice" ]; then
-        show_msg "No port selected."
+    if [ $? -ne 0 ]; then
+        toggle_port  # بازگشت به منوی مدیریت پورت‌ها
         return
     fi
 
@@ -271,241 +363,251 @@ function toggle_port() {
     port_status=$(sudo ovs-vsctl get Interface "$port_choice" admin_state)
     if [[ "$port_status" == "up" ]]; then
         # اگر پورت فعال باشد، نمایش گزینه غیرفعال کردن
-        action=$(dialog --menu "Port $port_choice is currently ENABLED. What do you want to do?" 15 60 2 \
-            1 "Disable" \
-            2 "Back to Menu" 3>&1 1>&2 2>&3)
+        action=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Port Status\Zn" \
+            --menu "\nPort \Zb$port_choice\Zn is currently \ZbENABLED\Zn. What do you want to do?" "$dialog_height" "$dialog_width" 2 \
+            1 "\Zb\Z1Disable\Zn" \
+            2 "\Zb\Z2Back to Menu\Zn" 3>&1 1>&2 2>&3)
     else
         # اگر پورت غیرفعال باشد، نمایش گزینه فعال کردن
-        action=$(dialog --menu "Port $port_choice is currently DISABLED. What do you want to do?" 15 60 2 \
-            1 "Enable" \
-            2 "Back to Menu" 3>&1 1>&2 2>&3)
+        action=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Port Status\Zn" \
+            --menu "\nPort \Zb$port_choice\Zn is currently \ZbDISABLED\Zn. What do you want to do?" "$dialog_height" "$dialog_width" 2 \
+            1 "\Zb\Z2Enable\Zn" \
+            2 "\Zb\Z2Back to Menu\Zn" 3>&1 1>&2 2>&3)
+    fi
+
+    if [ $? -ne 0 ]; then
+        toggle_port  
+        return
     fi
 
     case $action in
         1)
             if [[ "$port_status" == "up" ]]; then
-                dialog --yesno "Are you sure you want to disable port $port_choice?" 10 40
+                dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z1Confirm Action\Zn" \
+                    --yesno "\nAre you sure you want to \ZbDISABLE\Zn port \Zb$port_choice\Zn?" "$dialog_height" "$dialog_width"
                 if [ $? -eq 0 ]; then
                     sudo ovs-vsctl set Interface "$port_choice" admin_state=down
                     sudo ip link set "$port_choice" down
-                    show_msg "Port $port_choice disabled."
+                    show_msg "\Zb\Z3Port $port_choice disabled.\Zn"
                 else
-                    show_msg "Action canceled."
+                    show_msg "\Zb\Z1Action canceled.\Zn"
                 fi
             else
-                dialog --yesno "Are you sure you want to enable port $port_choice?" 10 40
+                dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z1Confirm Action\Zn" \
+                    --yesno "\nAre you sure you want to \ZbENABLE\Zn port \Zb$port_choice\Zn?" "$dialog_height" "$dialog_width"
                 if [ $? -eq 0 ]; then
-                    sudo ip link add "$port_choice" type dummy
                     sudo ip link set "$port_choice" up
                     sudo ovs-vsctl set Interface "$port_choice" admin_state=up
                     show_msg "Port $port_choice enabled."
                 else
-                    show_msg "Action canceled."
+                    show_msg "Action canceled"
                 fi
             fi
+            toggle_port 
             ;;
         2)
-            return  # بازگشت به منوی قبلی
+            toggle_port  
             ;;
     esac
 }
 
+
 # 4. Set VLAN to Access/Trunk with View/Remove VLAN Status and Main Menu Option
-# 4. Configure VLAN (Set Access/Trunk Mode and Manage VLANs)
 function configure_vlan() {
-    bridge=$(dialog --inputbox "Enter bridge name to view ports:" 10 40 3>&1 1>&2 2>&3)
+    get_terminal_size  # دریافت ابعاد صفحه
+
+    bridge=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Enter Bridge Name\Zn" \
+        --inputbox "\nEnter bridge name to view ports:" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+
+    if [ $? -ne 0 ]; then
+        return  # لغو عملیات
+    fi
     
-    if [ -z "$bridge" ];then
-        # اگر نام بریج مشخص نشده، لیست همه بریج‌ها و پورت‌ها نمایش داده شود
+    if [ -z "$bridge" ]; then
+        # اگر بریج مشخص نشده باشد، نمایش لیست همه بریج‌ها و پورت‌ها
         current_bridges=$(sudo ovs-vsctl list-br)
+        if [ -z "$current_bridges" ]; then
+            show_msg "No bridges available."
+            configure_vlan  # بازگشت به تابع تنظیم VLAN
+            return
+        fi
         port_list=()
         for bridge in $current_bridges; do
             ports=$(sudo ovs-vsctl list-ports "$bridge")
             for port in $ports; do
-                port_list+=("$port" "$bridge")
+                port_list+=("$port" "Bridge: $bridge")
             done
         done
     else
-        # اگر بریج مشخص شده، پورت‌های آن بریج را نمایش می‌دهد
+        # اگر بریج مشخص شده باشد، نمایش پورت‌های آن بریج
         current_ports=$(sudo ovs-vsctl list-ports "$bridge")
-        if [ -z "$current_ports" ];then
+        if [ -z "$current_ports" ]; then
             show_msg "No ports found on bridge $bridge."
+            configure_vlan  # بازگشت به تابع تنظیم VLAN
             return
         fi
         port_list=()
         for port in $current_ports; do
-            port_list+=("$port" "$bridge")
+            port_list+=("$port" "Bridge: $bridge")
         done
     fi
 
-    # انتخاب پورت برای پیکربندی VLAN
-    port_choice=$(dialog --menu "Select a port to configure VLAN" 15 60 10 "${port_list[@]}" 3>&1 1>&2 2>&3)
+    # انتخاب پورت برای تنظیم VLAN
+    port_choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Select Port\Zn" \
+        --menu "\nSelect a port to configure VLAN:" "$dialog_height" "$dialog_width" 10 "${port_list[@]}" 3>&1 1>&2 2>&3)
 
-    if [ -z "$port_choice" ];then
-        show_msg "No port selected."
+    if [ $? -ne 0 ]; then
+        configure_vlan  
         return
     fi
 
-    # منوی تنظیم VLAN: تنظیم یا نمایش یا حذف
-    vlan_action=$(dialog --menu "VLAN Configuration/Status/Remove" 15 60 4 \
-        1 "Configure VLAN" \
-        2 "View VLAN Status" \
-        3 "Remove VLAN" \
-        4 "Back to Main Menu" 3>&1 1>&2 2>&3)
+    # منوی تنظیم VLAN: تنظیم، نمایش، یا حذف
+    vlan_action=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3VLAN Configuration\Zn" \
+        --menu "\nVLAN Configuration for Port $port_choice:" "$dialog_height" "$dialog_width" 4 \
+        1 "\Zb\Z2Configure VLAN\Zn" \
+        2 "\Zb\Z3View VLAN Status\Zn" \
+        3 "\Zb\Z1Remove VLAN\Zn" \
+        4 "\Zb\Z4Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+
+    if [ $? -ne 0 ]; then
+        configure_vlan  
+        return
+    fi
 
     case $vlan_action in
         1)
             # انتخاب حالت VLAN: Access یا Trunk
-            mode=$(dialog --menu "Select VLAN Mode" 15 60 2 \
-                1 "Access" \
-                2 "Trunk" 3>&1 1>&2 2>&3)
+            mode=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Select VLAN Mode\Zn" \
+                --menu "\nSelect VLAN Mode for Port $port_choice:" "$dialog_height" "$dialog_width" 2 \
+                1 "\Zb\Z2Access Mode\Zn" \
+                2 "\Zb\Z2Trunk Mode\Zn" 3>&1 1>&2 2>&3)
 
-            # نمایش پیغام به کاربر برای حذف پیکربندی قبلی
-            dialog --msgbox "Changing VLAN mode will remove the previous configuration (Access or Trunk) for port $port_choice." 10 50
-
-            # بررسی حالت فعلی پورت و پاک‌سازی تنظیمات قبلی (Access یا Trunk)
-            current_tag=$(sudo ovs-vsctl get port "$port_choice" tag)
-            current_trunks=$(sudo ovs-vsctl get port "$port_choice" trunks)
-
-            if [ "$current_tag" != "[]" ]; then
-                sudo ovs-vsctl clear port "$port_choice" tag  # حذف VLAN در حالت Access
+            if [ $? -ne 0 ]; then
+                configure_vlan  
+                return
             fi
-            if [ "$current_trunks" != "[]" ]; then
-                sudo ovs-vsctl clear port "$port_choice" trunks  # حذف VLAN در حالت Trunk
-            fi
+
+            dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Changing VLAN Mode\Zn" \
+                --msgbox "\nChanging VLAN mode will remove the previous configuration (Access or Trunk) for port $port_choice." "$dialog_height" "$dialog_width"
+
+            # پاک‌سازی تنظیمات قبلی
+            sudo ovs-vsctl clear port "$port_choice" tag
+            sudo ovs-vsctl clear port "$port_choice" trunks
 
             case $mode in
-                1)  # حالت Access
+                1)
+                    # حالت Access
                     while true; do
-                        vlan_id=$(dialog --inputbox "Enter VLAN ID for access mode (single VLAN only, e.g., 10):" 10 50 3>&1 1>&2 2>&3)
+                        vlan_id=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Access Mode Configuration\Zn" \
+                            --inputbox "\nEnter VLAN ID for access mode (e.g., 10):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
                         
-                        # بررسی اینکه مقدار خالی نباشد و یک عدد صحیح مثبت باشد
                         if [[ -z "$vlan_id" ]]; then
                             show_msg "VLAN ID cannot be empty! Please enter a valid VLAN ID."
                         elif ! [[ "$vlan_id" =~ ^[0-9]+$ ]]; then
                             show_msg "Invalid VLAN ID! You must enter a positive number."
                         else
-                            # اگر مقدار درست بود، از حلقه خارج می‌شود
-                            break
+                            break  # اگر مقدار درست بود، از حلقه خارج می‌شود
                         fi
                     done
-
-                    # تنظیم VLAN ID برای حالت Access
                     sudo ovs-vsctl set port "$port_choice" tag="$vlan_id"
                     show_msg "Port $port_choice set to access mode with VLAN $vlan_id."
                     ;;
-                    
-                2)  # حالت Trunk
+                2)
+                    # حالت Trunk
                     while true; do
-                        vlans=$(dialog --inputbox "Enter allowed VLANs (comma-separated, e.g., 10,20,30) for trunk mode:" 10 50 3>&1 1>&2 2>&3)
-
-                        # بررسی اینکه مقدار خالی نباشد و به صورت اعداد صحیح مثبت و جدا شده با کاما باشد
+                        vlans=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Trunk Mode Configuration\Zn" \
+                            --inputbox "\nEnter allowed VLANs (comma-separated, e.g., 10,20,30):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+                        
                         if [[ -z "$vlans" ]]; then
                             show_msg "Allowed VLANs cannot be empty! Please enter a valid list of VLANs."
                         elif ! [[ "$vlans" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
                             show_msg "Invalid VLAN format! You must enter a comma-separated list of positive numbers (e.g., 10,20,30)."
                         else
-                            # اگر مقدار درست بود، از حلقه خارج می‌شود
-                            break
+                            break  # اگر مقدار درست بود، از حلقه خارج می‌شود
                         fi
                     done
-
-                    # تنظیم VLANها برای حالت Trunk
                     sudo ovs-vsctl set port "$port_choice" trunks="[$vlans]"
                     show_msg "Port $port_choice set to trunk mode with allowed VLANs: $vlans."
                     ;;
-            esac 
+            esac
+            configure_vlan  
             ;;
         2)
             # نمایش وضعیت فعلی VLAN
             vlan_tag=$(sudo ovs-vsctl get port "$port_choice" tag)
             trunk_vlans=$(sudo ovs-vsctl get port "$port_choice" trunks)
-            if [ "$vlan_tag" == "[]" ];then vlan_tag="None"; fi
-            if [ "$trunk_vlans" == "[]" ];then trunk_vlans="None"; fi
-            vlan_info="VLAN Status for Port: $port_choice\n"
+            [ "$vlan_tag" == "[]" ] && vlan_tag="None"
+            [ "$trunk_vlans" == "[]" ] && trunk_vlans="None"
+            vlan_info="\Zb\Z3VLAN Status for Port: $port_choice\Zn\n"
             vlan_info+="------------------------------\n"
             vlan_info+="Access VLAN: $vlan_tag\n"
             vlan_info+="Trunk VLANs: $trunk_vlans\n"
-            dialog --msgbox "$vlan_info" 15 50
+            dialog --colors --msgbox "$vlan_info" "$dialog_height" "$dialog_width"
+            configure_vlan  
             ;;
         3)
             # حذف VLANهای پورت
             vlan_tag=$(sudo ovs-vsctl get port "$port_choice" tag)
             trunk_vlans=$(sudo ovs-vsctl get port "$port_choice" trunks)
+            [ "$vlan_tag" == "[]" ] && vlan_tag=""
+            [ "$trunk_vlans" == "[]" ] && trunk_vlans=""
 
-            # تبدیل [] به خالی برای شناسایی درست خروجی
-            if [ "$vlan_tag" == "[]" ]; then
-                vlan_tag=""
-            fi
-            if [ "$trunk_vlans" == "[]" ]; then
-                trunk_vlans=""
-            fi
-
-            # بررسی وجود VLAN ها
             if [ -z "$vlan_tag" ] && [ -z "$trunk_vlans" ]; then
                 show_msg "No VLANs configured on port $port_choice to remove."
+                configure_vlan  
                 return
             fi
 
-            # ساخت لیست VLANها برای نمایش به کاربر
+            # ساخت لیست VLANها برای حذف
             vlan_list=()
-            if [ -n "$vlan_tag" ]; then  # اگر tag خالی نباشد
-                vlan_list+=("$vlan_tag" "Access VLAN" "off")
-            fi
+            [ -n "$vlan_tag" ] && vlan_list+=("$vlan_tag" "Access VLAN" "off")
             if [ -n "$trunk_vlans" ]; then
                 IFS=',' read -ra vlans_array <<< "$trunk_vlans"
                 for vlan in "${vlans_array[@]}"; do
-                    # حذف براکت‌های اضافی از VLAN ID
                     clean_vlan=$(echo "$vlan" | tr -d '[]')
-                    vlan_list+=("$clean_vlan" "Trunk VLAN" "off")  # نمایش VLAN ID فقط یک بار
+                    vlan_list+=("$clean_vlan" "Trunk VLAN" "off")
                 done
             fi
 
-            # نمایش VLAN ها برای حذف با استفاده از چک‌باکس
-            vlan_selection=$(dialog --checklist "Select VLAN(s) to remove" 15 60 10 "${vlan_list[@]}" 3>&1 1>&2 2>&3)
+            vlan_selection=$(dialog --colors --checklist "\nSelect VLAN(s) to remove from port $port_choice:" "$dialog_height" "$dialog_width" 10 "${vlan_list[@]}" 3>&1 1>&2 2>&3)
 
-            if [ -z "$vlan_selection" ]; then
-                show_msg "No VLANs selected for removal."
+            if [ $? -ne 0 ]; then
+                configure_vlan  # بازگشت به تابع تنظیم VLAN
                 return
             fi
 
-            # حذف VLANهای انتخاب شده توسط کاربر
-            dialog --yesno "Are you sure you want to remove the selected VLAN(s) from port $port_choice?" 10 50
+            # حذف VLANهای انتخاب شده
+            dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --yesno "\nAre you sure you want to remove the selected VLAN(s) from port $port_choice?" "$dialog_height" "$dialog_width"
             if [ $? -eq 0 ]; then
                 IFS=' ' read -ra selected_vlans <<< "$vlan_selection"
-                removed_vlans=()  # لیستی برای ذخیره VLANهای حذف‌شده
+                removed_vlans=()
                 for vlan in "${selected_vlans[@]}"; do
-                    vlan=$(echo $vlan | tr -d '"')  # حذف نقل قول‌های اضافی
+                    vlan=$(echo "$vlan" | tr -d '"')
                     if [ "$vlan" == "$vlan_tag" ]; then
-                        sudo ovs-vsctl clear port "$port_choice" tag  # حذف VLAN در حالت Access
-                        removed_vlans+=("$vlan")  # اضافه کردن VLAN به لیست حذف‌شده‌ها
+                        sudo ovs-vsctl clear port "$port_choice" tag
                     else
-                        sudo ovs-vsctl remove port "$port_choice" trunks "$vlan"  # حذف VLAN در حالت Trunk
-                        removed_vlans+=("$vlan")  # اضافه کردن VLAN به لیست حذف‌شده‌ها
+                        sudo ovs-vsctl remove port "$port_choice" trunks "$vlan"
                     fi
+                    removed_vlans+=("$vlan")
                 done
-
-                # نمایش پیغام نهایی برای همه VLANهای حذف‌شده
-                if [ ${#removed_vlans[@]} -gt 0 ]; then
-                    vlan_list_str=$(printf ", %s" "${removed_vlans[@]}")  # ساختن رشته‌ای از VLANهای حذف‌شده
-                    vlan_list_str=${vlan_list_str:2}  # حذف اولین کاما و فضای اضافی
-                    show_msg "VLAN(s) $vlan_list_str removed from port $port_choice."
-                else
-                    show_msg "No VLANs were removed."
-                fi
+                vlan_list_str=$(printf ", %s" "${removed_vlans[@]}")
+                vlan_list_str=${vlan_list_str:2}
+                show_msg "VLAN(s) $vlan_list_str removed from port $port_choice."
             else
                 show_msg "Action canceled."
             fi
+            configure_vlan  # بازگشت به تابع تنظیم VLAN
             ;;
-
         4)
             return  # بازگشت به منوی اصلی
             ;;
     esac
 }
 
+
 # 5. Set VLAN IP
 function set_vlan_ip() {
+    get_terminal_size
     # پیشنهاد تمام رابط‌های موجود (فیزیکی و مجازی) و حذف lo
     interfaces=$(ip link show | grep -o '^[0-9]*: [^:]*' | awk '{print $2}' | grep -v "^lo$" | sort | uniq)
 
@@ -528,23 +630,29 @@ function set_vlan_ip() {
     done
 
     # نمایش لیست رابط‌های موجود برای انتخاب
-    interface=$(dialog --menu "Select interface" 15 40 10 "${interface_list[@]}" 3>&1 1>&2 2>&3)
+    interface=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Select Interface\Zn" \
+        --menu "\nSelect interface for VLAN configuration:" "$dialog_height" "$dialog_width" 10 "${interface_list[@]}" 3>&1 1>&2 2>&3)
 
-    # بررسی اینکه آیا کاربر Cancel کرده یا چیزی انتخاب نشده است
-    if [ $? -ne 0 ] || [ -z "$interface" ]; then
-        return  # بازگشت به منوی قبلی
+    # اگر کاربر در این مرحله Cancel بزند، به منوی اصلی برمی‌گردد
+    if [ $? -ne 0 ]; then
+        return  # بازگشت به منوی اصلی در صورت لغو
     fi
 
     # بررسی اینکه آیا اینترفیس انتخاب‌شده یک VLAN است (بر اساس فرمت)
     if [[ "$interface" == *.* || "$interface" == *@* ]]; then
         # اگر اینترفیس VLAN بود، فقط IP دریافت می‌شود
         while true; do
-            ip_address=$(dialog --inputbox "Enter IP address for the VLAN interface (e.g., 192.168.1.10/24):" 10 50 3>&1 1>&2 2>&3)
+            ip_address=$(dialog --inputbox "Enter IP address for the VLAN interface (e.g., 192.168.1.10/24):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+
+            # در صورت کنسل کردن در این مرحله به صفحه انتخاب اینترفیس برمی‌گردد
+            if [ $? -ne 0 ]; then
+                set_vlan_ip
+                return
+            fi
 
             # بررسی اینکه IP آدرس وارد شده خالی نباشد و فرمت درستی داشته باشد
             if [[ -z "$ip_address" ]]; then
                 show_msg "IP address cannot be empty! Please enter a valid IP."
-                return
             elif ! [[ "$ip_address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\/[0-9]+$ ]]; then
                 show_msg "Invalid IP format! Please enter a valid IP (e.g., 192.168.1.10/24)."
             else
@@ -554,12 +662,17 @@ function set_vlan_ip() {
     else
         # دریافت VLAN ID از کاربر برای اینترفیس‌های فیزیکی
         while true; do
-            vlan_id=$(dialog --inputbox "Enter VLAN ID (e.g., 10):" 10 50 3>&1 1>&2 2>&3)
+            vlan_id=$(dialog --inputbox "Enter VLAN ID (e.g., 10):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+
+            # در صورت کنسل کردن در این مرحله به صفحه انتخاب اینترفیس برمی‌گردد
+            if [ $? -ne 0 ]; then
+                set_vlan_ip
+                return
+            fi
             
             # بررسی اینکه VLAN ID خالی نباشد و یک عدد صحیح مثبت باشد
             if [[ -z "$vlan_id" ]]; then
                 show_msg "VLAN ID cannot be empty! Please enter a valid VLAN ID."
-                return
             elif ! [[ "$vlan_id" =~ ^[0-9]+$ ]]; then
                 show_msg "Invalid VLAN ID! You must enter a positive number."
             else
@@ -574,12 +687,17 @@ function set_vlan_ip() {
 
         # دریافت IP از کاربر
         while true; do
-            ip_address=$(dialog --inputbox "Enter IP address for the VLAN interface (e.g., 192.168.1.10/24):" 10 50 3>&1 1>&2 2>&3)
+            ip_address=$(dialog --inputbox "Enter IP address for the VLAN interface (e.g., 192.168.1.10/24):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
+
+            # در صورت کنسل کردن در این مرحله به صفحه انتخاب اینترفیس برمی‌گردد
+            if [ $? -ne 0 ]; then
+                set_vlan_ip
+                return
+            fi
 
             # بررسی اینکه IP آدرس وارد شده خالی نباشد و فرمت درستی داشته باشد
             if [[ -z "$ip_address" ]]; then
                 show_msg "IP address cannot be empty! Please enter a valid IP."
-                return
             elif ! [[ "$ip_address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\/[0-9]+$ ]]; then
                 show_msg "Invalid IP format! Please enter a valid IP (e.g., 192.168.1.10/24)."
             else
@@ -600,20 +718,25 @@ function set_vlan_ip() {
     else
         show_msg "Failed to add IP address $ip_address to VLAN interface $interface. Please check the details."
     fi
+
+    # بازگشت به صفحه انتخاب اینترفیس بعد از اعمال تغییرات
+    set_vlan_ip
 }
 
 # 6. Configure QoS for a Port
 function set_qos() {
+    get_terminal_size  # تنظیم ابعاد پویا برای نمایش
     while true; do
         # نمایش منوی اصلی QoS
-        qos_action=$(dialog --menu "QoS Configuration Menu" 15 50 4 \
-            1 "Set QoS for a Port" \
-            2 "View Current QoS for a Port" \
-            3 "Remove QoS from a Port" \
-            4 "Back to Main Menu" 3>&1 1>&2 2>&3)
+        qos_action=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3QoS Configuration Menu\Zn" \
+            --menu "\nChoose an action for QoS:" "$dialog_height" "$dialog_width" 4 \
+            1 "\Zb\Z2Set QoS for a Port\Zn" \
+            2 "\Zb\Z2View Current QoS for a Port\Zn" \
+            3 "\Zb\Z2Remove QoS from a Port\Zn" \
+            4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ] || [ -z "$qos_action" ]; then
-            return  # بازگشت به منوی قبلی در صورت لغو
+            return  
         fi
 
         case $qos_action in
@@ -623,7 +746,7 @@ function set_qos() {
 
                 if [ -z "$bridges" ]; then
                     show_msg "No OVS bridges available!"
-                    return
+                    continue  # بازگشت به منوی QoS
                 fi
 
                 port_list=()
@@ -638,25 +761,27 @@ function set_qos() {
                 # بررسی اینکه آیا پورت‌ها موجود هستند
                 if [ ${#port_list[@]} -eq 0 ]; then
                     show_msg "No ports available!"
-                    return
+                    continue  # بازگشت به منوی QoS
                 fi
 
                 # نمایش لیست پورت‌ها برای انتخاب
-                port=$(dialog --menu "Select Port to apply QoS" 15 40 10 "${port_list[@]}" 3>&1 1>&2 2>&3)
+                port=$(dialog --menu "Select Port to apply QoS" "$dialog_height" "$dialog_width" 10 "${port_list[@]}" 3>&1 1>&2 2>&3)
 
                 if [ $? -ne 0 ] || [ -z "$port" ]; then
-                    continue  # بازگشت به منوی اصلی در صورت لغو
+                    continue  # بازگشت به منوی QoS در صورت لغو
                 fi
 
                 # دریافت نرخ حداکثر (Max Rate) از کاربر
                 while true; do
-                    max_rate=$(dialog --inputbox "Enter maximum rate (in kbps):" 10 30 3>&1 1>&2 2>&3)
+                    max_rate=$(dialog --inputbox "Enter maximum rate (in kbps):" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
 
                     # بررسی اینکه max_rate خالی نباشد و یک عدد صحیح مثبت باشد
                     if [[ -z "$max_rate" ]]; then
                         show_msg "Maximum rate cannot be empty! Please enter a valid rate."
+                        set_qos
                     elif ! [[ "$max_rate" =~ ^[0-9]+$ ]]; then
                         show_msg "Invalid rate! You must enter a positive number."
+                        set_qos
                     else
                         break
                     fi
@@ -668,17 +793,15 @@ function set_qos() {
                 ;;
 
             2)  # نمایش وضعیت فعلی QoS برای یک پورت
-
-                # بررسی وجود QoS
                 qos_list=$(sudo ovs-vsctl list qos)
 
                 if [ -z "$qos_list" ]; then
                     show_msg "No QoS configurations available!"
-                    return
+                    continue  # بازگشت به منوی QoS
                 fi
 
                 # نمایش وضعیت فعلی تمامی QoSها
-                dialog --msgbox "QoS Configurations:\n\n$qos_list" 20 60
+                dialog --msgbox "QoS Configurations:\n\n$qos_list" "$dialog_height" "$dialog_width"
                 ;;
 
             3)  # حذف QoS از یک پورت
@@ -687,7 +810,7 @@ function set_qos() {
 
                 if [ -z "$bridges" ]; then
                     show_msg "No OVS bridges available!"
-                    return
+                    continue  # بازگشت به منوی QoS
                 fi
 
                 port_list=()
@@ -702,14 +825,14 @@ function set_qos() {
                 # بررسی اینکه آیا پورت‌ها موجود هستند
                 if [ ${#port_list[@]} -eq 0 ]; then
                     show_msg "No ports available!"
-                    return
+                    continue  # بازگشت به منوی QoS
                 fi
 
                 # نمایش لیست پورت‌ها برای انتخاب
-                port=$(dialog --menu "Select Port to remove QoS" 15 40 10 "${port_list[@]}" 3>&1 1>&2 2>&3)
+                port=$(dialog --menu "Select Port to remove QoS" "$dialog_height" "$dialog_width" 10 "${port_list[@]}" 3>&1 1>&2 2>&3)
 
                 if [ $? -ne 0 ] || [ -z "$port" ]; then
-                    continue  # بازگشت به منوی اصلی در صورت لغو
+                    continue  # بازگشت به منوی QoS در صورت لغو
                 fi
 
                 # تأیید حذف QoS از پورت
@@ -734,13 +857,11 @@ function set_qos() {
                 done
 
                 # نمایش پیام نهایی به کاربر
-                message="QoS cleared from port $port.\nQoS and related queues removed for port $port."
-                dialog --msgbox "$message" 10 50
+                show_msg "QoS cleared from port $port."
                 ;;
 
-
             4)  # بازگشت به منوی قبلی
-                return  # بازگشت به منوی قبلی
+                break  
                 ;;
         esac
     done
@@ -913,18 +1034,26 @@ ovs_service_status() {
 
 # Main Menu
 while true; do
-    choice=$(dialog --menu "Open vSwitch Management" 15 60 10 \
-        1 "Manage Bridges" \
-        2 "Manage Ports" \
-        3 "Toggle Port (Enable/Disable)" \
-        4 "Configure VLAN" \
-        5 "Set VLAN IP" \
-        6 "Set QoS for Port" \
-        7 "Show Traffic Stats" \
-        8 "Backup/Restore OVS Config" \
-        9 "OVS Service Status" \
-        10 "Return to Main Menu" 3>&1 1>&2 2>&3)
-        
+    get_terminal_size  # به‌روزرسانی ابعاد ترمینال
+    choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Open vSwitch Management\Zn" \
+        --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 10 \
+        1 "\Zb\Z2Manage Bridges\Zn" \
+        2 "\Zb\Z2Manage Ports\Zn" \
+        3 "\Zb\Z2Toggle Port (Enable/Disable)\Zn" \
+        4 "\Zb\Z2Configure VLAN\Zn" \
+        5 "\Zb\Z2Set VLAN IP\Zn" \
+        6 "\Zb\Z2Set QoS for Port\Zn" \
+        7 "\Zb\Z2Show Traffic Stats\Zn" \
+        8 "\Zb\Z2Backup/Restore OVS Config\Zn" \
+        9 "\Zb\Z2OVS Service Status\Zn" \
+        10 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
+
+    # بررسی لغو عملیات توسط کاربر
+    if [ $? -ne 0 ]; then
+        clear
+        exit 0
+    fi
+
     case $choice in
         1) manage_bridges ;;
         2) manage_ports ;;
@@ -933,24 +1062,25 @@ while true; do
         5) set_vlan_ip ;;
         6) set_qos ;;
         7) show_traffic_stats ;;
-8)
-    sub_choice=$(dialog --menu "Backup/Restore OVS Config" 15 60 3 \
-        1 "Backup Configuration" \
-        2 "Restore Configuration" \
-        3 "Delete Backup Configuration" 3>&1 1>&2 2>&3)
+        8)
+            sub_choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Backup/Restore OVS Config\Zn" \
+                --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 3 \
+                1 "\Zb\Z2Backup Configuration\Zn" \
+                2 "\Zb\Z2Restore Configuration\Zn" \
+                3 "\Zb\Z2Delete Backup Configuration\Zn" 3>&1 1>&2 2>&3)
 
-    case $sub_choice in
-        1) backup_ovs_config ;;
-        2) restore_ovs_config ;;
-        3) delete_ovs_backup ;;
-        *) show_msg "Invalid choice!" ;;
-    esac
-    ;;
+            # بررسی لغو عملیات
+            if [ $? -ne 0 ]; then continue; fi
+
+            case $sub_choice in
+                1) backup_ovs_config ;;
+                2) restore_ovs_config ;;
+                3) delete_ovs_backup ;;
+                *) show_msg "\Zb\Z1Invalid choice!\Zn" ;;
+            esac
+            ;;
         9) ovs_service_status ;;
-        10)
-            ./main_menu.sh
-            exit 0
-            ;;  # Return to main menu and close this script
+        10) $BASE_DIR/.././net-tool.sh; exit 0 ;;
         *)
             break
             ;;
