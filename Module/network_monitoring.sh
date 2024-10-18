@@ -261,6 +261,7 @@ view_connections() {
             5)
                 clear
                 device_monitoring_submenu
+                break
                 ;;
         esac
     done
