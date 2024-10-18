@@ -531,7 +531,7 @@ function monitor_ports_and_traffic() {
             1 "\Zb\Z2Monitor Ports and Traffic\Zn" \
             2 "\Zb\Z2Display Logs\Zn" \
             3 "\Zb\Z2Delete Logs\Zn" \
-            4 "\Zb\Z1Exit\Zn" 3>&1 1>&2 2>&3)
+            4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $choice in
             1)
