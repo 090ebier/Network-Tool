@@ -957,10 +957,6 @@ reset_firewall() {
         # Clear all nftables rules
         sudo nft flush ruleset
 
-        # Optional: Remove custom tables (filter, nat, etc.)
-        sudo nft delete table inet filter
-        sudo nft delete table ip nat
-
         # Reset default tables and chains
         sudo nft add table inet filter
         sudo nft add chain inet filter input { type filter hook input priority 0 \; policy accept \; }
