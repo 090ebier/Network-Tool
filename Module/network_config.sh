@@ -46,37 +46,71 @@ show_interface_brief() {
 
 # Function to show DNS Settings with colors and better formatting
 show_dns_settings() {
-    # Fetch DNS servers from /etc/resolv.conf
-    dns_servers=$(grep -E '^nameserver' /etc/resolv.conf | awk '{print $2}')
-    
-    # Separate IPv4 and IPv6 addresses
-    dns_ipv4=$(echo "$dns_servers" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
-    dns_ipv6=$(echo "$dns_servers" | grep -Eo '([0-9a-fA-F:]+:+)+[0-9a-fA-F]+')
+    # Initialize variables for DNS servers
+    dns_servers_resolv_conf=""
+    dns_servers_systemd=""
 
-    # Prepare the output for IPv4 and IPv6 addresses
-    output="\n\Zb\Z4Current DNS Servers:\Zn\n\n"
+    # Fetch DNS servers from /etc/resolv.conf
+    if [ -f /etc/resolv.conf ]; then
+        dns_servers_resolv_conf=$(grep -E '^nameserver' /etc/resolv.conf | awk '{print $2}')
+    fi
+
+    # Check if systemd-resolved is active and fetch DNS from it
+    if systemctl is-active systemd-resolved > /dev/null 2>&1; then
+        resolvectl_output=$(resolvectl status)
+
+        # Extract all lines with DNS Servers and the corresponding link (interface)
+        dns_lines=$(echo "$resolvectl_output" | grep -E "Link|DNS Servers")
+
+        # Prepare the output for systemd-resolved DNS
+        output="\n\Zb\Z4DNS Servers from systemd-resolved:\Zn\n\n"
+
+        current_link=""
+        while IFS= read -r line; do
+            if [[ $line == *"Link"* ]]; then
+                # Get the link (interface) name
+                current_link=$(echo "$line" | awk '{print $4}')
+                output+="\n\Zb\Z3Link (Interface): \Zn$current_link\n"
+            elif [[ $line == *"DNS Servers"* ]]; then
+                # Get all DNS Servers for the current link
+                dns_servers=$(echo "$line" | awk '{for (i=3; i<=NF; i++) print $i}')
+                output+="\Zb\Z2DNS Servers:\Zn\n"
+                for dns in $dns_servers; do
+                    output+="    $dns\n"
+                done
+            fi
+        done <<< "$dns_lines"
+    fi
+
+    # Separate IPv4 and IPv6 addresses from /etc/resolv.conf
+    dns_ipv4_resolv_conf=$(echo "$dns_servers_resolv_conf" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
+    dns_ipv6_resolv_conf=$(echo "$dns_servers_resolv_conf" | grep -Eo '([0-9a-fA-F:]+:+)+[0-9a-fA-F]+')
+
+    # Prepare the output for /etc/resolv.conf DNS
+    output+="\n\Zb\Z4DNS Servers from /etc/resolv.conf:\Zn\n\n"
     
-    if [ -n "$dns_ipv4" ]; then
+    if [ -n "$dns_ipv4_resolv_conf" ]; then
         output+="\Zb\Z3IPv4:\Zn\n"
-        for ip in $dns_ipv4; do
+        for ip in $dns_ipv4_resolv_conf; do
             output+="    \Zb\Z2$ip\Zn\n"
         done
     else
-        output+="\Zb\Z3IPv4:\Zn\n    \Zb\Z1No IPv4 DNS found.\Zn\n"
+        output+="\Zb\Z3IPv4:\Zn\n    \Zb\Z1No IPv4 DNS found in /etc/resolv.conf.\Zn\n"
     fi
     
-    if [ -n "$dns_ipv6" ]; then
+    if [ -n "$dns_ipv6_resolv_conf" ]; then
         output+="\n\Zb\Z3IPv6:\Zn\n"
-        for ip in $dns_ipv6; do
+        for ip in $dns_ipv6_resolv_conf; do
             output+="    \Zb\Z2$ip\Zn\n"
         done
     else
-        output+="\n\Zb\Z3IPv6:\Zn\n    \Zb\Z1No IPv6 DNS found.\Zn\n"
+        output+="\n\Zb\Z3IPv6:\Zn\n    \Zb\Z1No IPv6 DNS found in /etc/resolv.conf.\Zn\n"
     fi
-    
+
     # Show the dialog box with the formatted DNS settings
-    dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4DNS Settings\Zn" --msgbox "$output" 12 60
+    dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4DNS Settings\Zn" --msgbox "$output" 20 70
 }
+
 
 # Function to guess Subnet Mask based on the first octet of the IP address
 guess_subnet_mask() {
@@ -113,7 +147,17 @@ set_ip_address() {
         return  # Cancel pressed, return to previous menu
     fi
 
+    # Function to check if Netplan is active
+    is_netplan_active() {
+        if [ -d /etc/netplan ] && [ "$(ls -A /etc/netplan)" ]; then
+            return 0  # Netplan is active
+        else
+            return 1  # Netplan is not active
+        fi
+    }
+
     if [ "$ip_type" -eq 1 ]; then
+        # Static IP configuration
         ip_addr=$(dialog --title "Set Static IP" --inputbox "Enter IP Address:" 10 50 3>&1 1>&2 2>&3)
         if [ $? -ne 0 ]; then
             return  # Cancel pressed, return to previous menu
@@ -130,29 +174,68 @@ set_ip_address() {
             return  # Cancel pressed, return to previous menu
         fi
 
-        # Only flush and set the new IP if the entire process is confirmed
-        sudo ip addr flush dev "$selected_iface"
+        # Set the static IP configuration
         sudo ip addr add "$ip_addr/$subnet_mask" dev "$selected_iface"
         sudo ip route add default via "$gateway"
 
-        # Automatically save the static configuration for persistence
-        echo -e "auto $selected_iface\niface $selected_iface inet static\n    address $ip_addr\n    netmask $subnet_mask\n    gateway $gateway" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
-
-        dialog --msgbox "Static IP configuration applied and saved to /etc/network/interfaces." 10 50
+        if is_netplan_active; then
+            sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
+network:
+    version: 2
+    ethernets:
+        $selected_iface:
+            dhcp4: no
+            addresses:
+                - $ip_addr/$subnet_mask
+            gateway4: $gateway
+EOF"
+            sudo netplan apply
+            dialog --msgbox "Static IP configuration applied and saved in Netplan." 10 50
+        else
+            echo -e "auto $selected_iface\niface $selected_iface inet static\n    address $ip_addr\n    netmask $subnet_mask\n    gateway $gateway" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
+            dialog --msgbox "Static IP configuration applied and saved to /etc/network/interfaces." 10 50
+        fi
 
     else
         # DHCP configuration
-        sudo ip addr flush dev "$selected_iface"
-        sudo dhclient "$selected_iface"
+        # DO NOT flush existing IP configuration yet to avoid losing SSH connection
+        if command -v dhclient > /dev/null 2>&1; then
+            sudo dhclient "$selected_iface"
+            dhcp_method="dhclient"
+        elif command -v dhcpcd > /dev/null 2>&1; then
+            sudo dhcpcd "$selected_iface"
+            dhcp_method="dhcpcd"
+        else
+            dialog --msgbox "Neither dhclient nor dhcpcd found. Unable to configure DHCP." 10 50
+            return
+        fi
 
-        # Automatically save the DHCP configuration for persistence
-        echo -e "auto $selected_iface\niface $selected_iface inet dhcp" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
+        # If DHCP was successful, flush previous IP configuration
+        if [ $? -eq 0 ]; then
+            sudo ip addr flush dev "$selected_iface"
 
-        dialog --msgbox "DHCP configuration applied and saved to /etc/network/interfaces." 10 50
+            if is_netplan_active; then
+                sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
+network:
+    version: 2
+    ethernets:
+        $selected_iface:
+            dhcp4: yes
+EOF"
+                sudo netplan apply
+                dialog --msgbox "DHCP configuration applied using $dhcp_method and saved in Netplan." 10 50
+            else
+                echo -e "auto $selected_iface\niface $selected_iface inet dhcp" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
+                dialog --msgbox "DHCP configuration applied using $dhcp_method and saved to /etc/network/interfaces." 10 50
+            fi
+        else
+            dialog --msgbox "Failed to obtain DHCP address. Previous IP configuration remains." 10 50
+        fi
     fi
 
     show_interface_brief
 }
+
 
 
 
@@ -319,16 +402,16 @@ set_dns() {
         6 "\Zb\Z1Custom DNS\Zn" 3>&1 1>&2 2>&3)
 
     if [ $? -ne 0 ]; then
-        return  # Cancel pressed, return to the previous menu
+        return  # اگر کاربر Cancel را بزند، تابع خارج می‌شود
     fi
 
-    # Separate IPv4 and IPv6 addresses
+    # انتخاب DNS ها بر اساس انتخاب کاربر
     case $dns_choice in
         1) dns_servers_ipv4="8.8.8.8 8.8.4.4"; dns_servers_ipv6="2001:4860:4860::8888 2001:4860:4860::8844" ;;
         2) dns_servers_ipv4="1.1.1.1 1.0.0.1"; dns_servers_ipv6="2606:4700:4700::1111 2606:4700:4700::1001" ;;
         3) dns_servers_ipv4="9.9.9.9 149.112.112.112"; dns_servers_ipv6="2620:fe::fe 2620:fe::9" ;;
         4) dns_servers_ipv4="208.67.222.222 208.67.220.220"; dns_servers_ipv6="2620:119:35::35 2620:119:53::53" ;;
-        5) dns_servers_ipv4="178.22.122.100  185.51.200.2" ;;
+        5) dns_servers_ipv4="178.22.122.100  185.51.200.2";dns_servers_ipv6="";;
         6) 
             dns_servers=$(dialog --colors --title "\Zb\Z4Custom DNS\Zn" --inputbox "Enter custom DNS servers (comma-separated):" 10 50 3>&1 1>&2 2>&3) 
             dns_servers_ipv4=$(echo "$dns_servers" | tr ',' ' ' | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
@@ -336,17 +419,36 @@ set_dns() {
             ;;
     esac
 
-    # Remove previous DNS settings and apply the new ones to /etc/resolv.conf
+    # حذف تنظیمات قبلی و تنظیم DNS ها در /etc/resolv.conf
     sudo bash -c "echo '' > /etc/resolv.conf"
     sudo bash -c "echo -e 'nameserver ${dns_servers_ipv4// /\\nnameserver }' >> /etc/resolv.conf"
     sudo bash -c "echo -e 'nameserver ${dns_servers_ipv6// /\\nnameserver }' >> /etc/resolv.conf"
 
-    # Apply DNS settings to Netplan and NetworkManager if used
-    # Additional code for DNS persistence here...
+    # سوال از کاربر برای اعمال تغییرات به صورت دائمی
+    dialog --colors --backtitle "Network Management Tool" --yesno "\n\Zb\Z3Do you want to make this DNS configuration persistent after reboot?\Zn" 10 50
+    response=$?
+    
+    if [ $response -eq 0 ]; then
+        # تنظیم DNS در /etc/systemd/resolved.conf
+        all_dns_servers="${dns_servers_ipv4} ${dns_servers_ipv6}"
 
-    # Display success message
-    dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4DNS Set\Zn" --msgbox "\n\Zb\Z3DNS set and saved successfully.\Zn" 10 50
+        # اگر خط DNS= وجود ندارد، آن را اضافه می‌کنیم
+        if grep -q '^DNS=' /etc/systemd/resolved.conf; then
+            sudo bash -c "sed -i 's/^DNS=.*/DNS=${all_dns_servers}/' /etc/systemd/resolved.conf"
+        else
+            sudo bash -c "echo 'DNS=${all_dns_servers}' >> /etc/systemd/resolved.conf"
+        fi
+
+        # Restart systemd-resolved to apply persistent changes
+        sudo systemctl restart systemd-resolved
+
+        dialog --colors --backtitle "Network Management Tool" --msgbox "\n\Zb\Z3DNS settings have been saved and will persist after reboot.\Zn" 10 50
+    else
+        dialog --colors --backtitle "Network Management Tool" --msgbox "\n\Zb\Z3DNS settings have been applied, but will not persist after reboot.\Zn" 10 50
+    fi
 }
+
+
 # Function to set Hostname with colors
 set_hostname() {
     new_hostname=$(dialog --colors --backtitle "Network Management Tool" --title "Set Hostname" --inputbox "Enter new hostname:" 10 50 3>&1 1>&2 2>&3)
