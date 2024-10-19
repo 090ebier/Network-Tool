@@ -1,6 +1,6 @@
 #!/bin/bash
 
-trap "clear; echo 'Exiting...'; exit" SIGINT
+trap "clear; echo 'Exiting Network Tool Management...'; exit" SIGINT
 
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 # Function to dynamically get terminal size
