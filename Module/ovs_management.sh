@@ -1075,7 +1075,7 @@ function ovs_management(){
                 1) backup_ovs_config ;;
                 2) restore_ovs_config ;;
                 3) delete_ovs_backup ;;
-                4) break ;;
+                4) ovs_management ;;
                 *) show_msg "\Zb\Z1Invalid choice!\Zn" ;;
             esac
             ;;
