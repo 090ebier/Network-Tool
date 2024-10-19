@@ -88,11 +88,11 @@ main_menu() {
 
     choice=$(<tempfile)
     case $choice in
-        1) clear;$BASE_DIR/Module/network_config.sh ;;
-        2) clear;$BASE_DIR/Module/firewall_management.sh ;;
-        3) clear;$BASE_DIR/Module/ovs_management.sh ;;
-        4) clear;$BASE_DIR/Module/network_monitoring.sh ;;
-        5) clear;$BASE_DIR/install.sh ;;
+        1) clear;$BASE_DIR/Module/network_config.sh "$0" "return_to_menu" ;;
+        2) clear;$BASE_DIR/Module/firewall_management.sh "$0" "return_to_menu" ;;
+        3) clear;$BASE_DIR/Module/ovs_management.sh "$0" "return_to_menu" ;;
+        4) clear;$BASE_DIR/Module/network_monitoring.sh "$0" "return_to_menu" ;;
+        5) clear;$BASE_DIR/install.sh "$0" "return_to_menu" ;;
         6) exit_script ;;
         *) echo "Invalid option"; main_menu ;;
     esac
@@ -106,7 +106,12 @@ exit_script() {
 
 trap "rm -f tempfile" EXIT
 
-make_modules_executable
-choose_theme  # Only once
-welcome_message  # Only once
-main_menu  # Main menu
+# Check if we're returning from a module
+if [ "$2" = "return_to_menu" ]; then
+    main_menu  # Skip theme and welcome message, directly to the menu
+else
+    make_modules_executable
+    choose_theme  # Only once
+    welcome_message  # Only once
+    main_menu  # Main menu
+fi
