@@ -31,10 +31,15 @@ make_modules_executable() {
 
 # Function to determine network configuration type
 determine_network_config() {
-    if [ -f /etc/network/interfaces ]; then
-        echo "Interfaces file"
-    elif [ -f /etc/netplan ]; then
+    # بررسی اینکه آیا Netplan در سیستم فعال است
+    if systemctl is-active systemd-networkd > /dev/null 2>&1 || [ -d /etc/netplan ] && [ "$(ls -A /etc/netplan)" ]; then
         echo "Netplan"
+    # بررسی اینکه آیا NetworkManager در حال استفاده است
+    elif systemctl is-active NetworkManager > /dev/null 2>&1; then
+        echo "NetworkManager"
+    # بررسی اینکه آیا فایل های تنظیمات سنتی interfaces وجود دارند
+    elif [ -f /etc/network/interfaces ]; then
+        echo "Interfaces file"
     else
         echo "Unknown Configuration"
     fi
