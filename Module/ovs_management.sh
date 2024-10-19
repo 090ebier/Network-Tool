@@ -1,4 +1,5 @@
 #!/bin/bash
+trap "clear; echo 'Exiting Network Tool Management...'; exit" SIGINT
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 TITLE="Open vSwitch Management"
 
