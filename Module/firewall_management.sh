@@ -650,7 +650,20 @@ manage_icmp_rules() {
                 *) manage_icmp_rules ;;
             esac
 
-            # Step 4: Choose Action (Accept or Drop)
+            # Step 4: Ask whether the rule is for input or output
+            direction=$(dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --title "\Zb\Z4Select Direction\Zn" \
+                --menu "\n\Zb\Z3Select Rule Direction (Input or Output):\Zn" "$dialog_height" "$dialog_width" 2 \
+                1 "\Zb\Z2Input (Incoming Traffic)\Zn" \
+                2 "\Zb\Z2Output (Outgoing Traffic)\Zn" 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then manage_icmp_rules; fi
+
+            case $direction in
+                1) direction_cmd="input" ;;
+                2) direction_cmd="output" ;;
+                *) manage_icmp_rules ;;
+            esac
+
+            # Step 5: Choose Action (Accept or Drop)
             action=$(dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --title "\Zb\Z4Select Action\Zn" \
                 --menu "\n\Zb\Z3Select Action for this ICMP Rule:\Zn" "$dialog_height" "$dialog_width" 2 \
                 1 "\Zb\Z2Accept\Zn" \
@@ -663,18 +676,20 @@ manage_icmp_rules() {
                 *) manage_icmp_rules ;;
             esac
 
-            # Step 5: Apply the rule
+            # Step 6: Apply the rule
             rule_components=()
             [ -n "$src_ip" ] && rule_components+=("$src_ip")
             [ -n "$dest_ip" ] && rule_components+=("$dest_ip")
             rule_components+=("$icmp_type_cmd $action_cmd")
 
-            rule_command="sudo nft add rule inet filter input ${rule_components[*]}"
+            # Create the nft command based on the selected direction (input or output)
+            rule_command="sudo nft add rule inet filter $direction_cmd ${rule_components[*]}"
             eval $rule_command
 
-            show_msg "\Zb\Z3ICMP rule added successfully:\Zn\n\nConditions: ${rule_components[*]}\nAction: $action_cmd"
+            show_msg "\Zb\Z3ICMP rule added successfully:\Zn\n\nDirection: $direction_cmd\nConditions: ${rule_components[*]}\nAction: $action_cmd"
             manage_icmp_rules
             ;;
+
 
         2)  # View ICMP Rules
             sudo nft -a list ruleset | awk '/table/ {table=$2} /chain/ {chain=$2} /icmp/ {print table, chain, $0}' > /tmp/icmp_rules.txt
@@ -683,41 +698,79 @@ manage_icmp_rules() {
             manage_icmp_rules
             ;;
 
-        3)  # Remove ICMP Rule
-            # Get ICMP rules with their handles from the table
-            rules=$(sudo nft -a list chain inet filter input 2>/dev/null | awk '/icmp/ && /handle/')
-            if [ -z "$rules" ]; then
-                dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z1No ICMP rules found!\Zn" "$dialog_height" "$dialog_width"
-                manage_icmp_rules
-            fi
+3)  # Remove ICMP Rule
+    # Get ICMP rules with their handles from both input and output chains
+    input_rules=$(sudo nft -a list chain inet filter input 2>/dev/null | awk '/icmp/ && /handle/')
+    output_rules=$(sudo nft -a list chain inet filter output 2>/dev/null | awk '/icmp/ && /handle/')
 
-            # Build the list of rules to display in dialog
-            rule_list=()
-            while IFS= read -r line; do
-                rule_handle=$(echo "$line" | awk '{print $NF}')  # Extract the handle of the rule
-                rule_desc=$(echo "$line" | awk '{$NF=""; print $0}' | tr -s ' ')  # Remove handle and extra spaces
-                rule_list+=("$rule_handle" "$rule_desc")  # Add description with reduced spacing
-            done <<< "$rules"
+    if [ -z "$input_rules" ] && [ -z "$output_rules" ]; then
+        dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z1No ICMP rules found!\Zn" "$dialog_height" "$dialog_width"
+        manage_icmp_rules
+    fi
 
-            rule_choice=$(dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --title "\Zb\Z4Delete ICMP Rule\Zn" \
-                --menu "\n\Zb\Z3Select ICMP rule to delete:\Zn" "$dialog_height" "$dialog_width" 8 "${rule_list[@]}" 3>&1 1>&2 2>&3)
+    # Build the list of rules to display in dialog (show handles and rule descriptions)
+    rule_list=()
 
-            if [ -z "$rule_choice" ]; then
-                dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z1No rule selected!\Zn" "$dialog_height" "$dialog_width"
-                manage_icmp_rules
-            fi
+    # Add input rules to the list
+    while IFS= read -r line; do
+        rule_handle=$(echo "$line" | awk '{print $NF}')  # Extract the handle of the rule
+        rule_desc=$(echo "$line" | awk '{$NF=""; print $0}' | tr -s ' ')  # Remove handle and extra spaces
+        rule_list+=("$rule_handle" "$rule_handle - Input: $rule_desc")  # Display handle and rule for input chain
+    done <<< "$input_rules"
 
-            # Correctly delete the selected rule by its handle
-            sudo nft delete rule inet filter input handle "$rule_choice"
-            if [ $? -eq 0 ]; then
-                dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z2ICMP rule with handle $rule_choice deleted!\Zn" "$dialog_height" "$dialog_width"
-            else
-                dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z1Failed to delete ICMP rule!\Zn" "$dialog_height" "$dialog_width"
-            fi
-            manage_icmp_rules
-            ;;
+    # Add output rules to the list
+    while IFS= read -r line; do
+        rule_handle=$(echo "$line" | awk '{print $NF}')  # Extract the handle of the rule
+        rule_desc=$(echo "$line" | awk '{$NF=""; print $0}' | tr -s ' ')  # Remove handle and extra spaces
+        rule_list+=("$rule_handle" "$rule_handle - Output: $rule_desc")  # Display handle and rule for output chain
+    done <<< "$output_rules"
+
+    # Check if there are rules to delete
+    if [ ${#rule_list[@]} -eq 0 ]; then
+        dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z1No ICMP rules found!\Zn" "$dialog_height" "$dialog_width"
+        manage_icmp_rules
+    fi
+
+    # Display the rules for selection (handles and rules)
+    rule_choice=$(dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --title "\Zb\Z4Delete ICMP Rule\Zn" \
+        --menu "\n\Zb\Z3Select ICMP rule to delete:\Zn" "$dialog_height" "$dialog_width" 8 "${rule_list[@]}" 3>&1 1>&2 2>&3)
+
+    if [ -z "$rule_choice" ]; then
+        dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z1No rule selected!\Zn" "$dialog_height" "$dialog_width"
+        manage_icmp_rules
+    fi
+
+    # Determine if the selected rule is in input or output chain
+    selected_rule=$(printf '%s\n' "${rule_list[@]}" | grep "$rule_choice")
+
+    if [[ "$selected_rule" == *"Input"* ]]; then
+        chain="input"
+    elif [[ "$selected_rule" == *"Output"* ]]; then
+        chain="output"
+    else
+        dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z1Failed to determine chain for selected rule!\Zn" "$dialog_height" "$dialog_width"
+        manage_icmp_rules
+    fi
+
+    # Confirm rule deletion
+    dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --yesno "Are you sure you want to delete ICMP rule with handle $rule_choice from $chain chain?" "$dialog_height" "$dialog_width"
+    if [ $? -ne 0 ]; then
+        manage_icmp_rules
+    fi
+
+    # Correctly delete the selected rule by its handle from the appropriate chain
+    sudo nft delete rule inet filter "$chain" handle "$rule_choice"
+    
+    if [ $? -eq 0 ]; then
+        dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z2ICMP rule with handle $rule_choice deleted from $chain chain!\Zn" "$dialog_height" "$dialog_width"
+    else
+        dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --msgbox "\n\Zb\Z1Failed to delete ICMP rule!\Zn" "$dialog_height" "$dialog_width"
+    fi
+    manage_icmp_rules
+    ;;
+
         4)  # Return to previous menu
-            return
+            firewall_menu
             ;;
     esac
 }
