@@ -1,5 +1,5 @@
 #!/bin/bash
-
+trap "clear; echo 'Exiting Network Tool Management Installer...'; exit" SIGINT
 if [ "$EUID" -ne 0 ]; then
     echo "This script requires root privileges. Restarting with sudo..."
     exec sudo "$0" "$@"
