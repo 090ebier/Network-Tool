@@ -10,9 +10,18 @@ fi
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 TITLE="Network Management Tool"
 
-# Flags to ensure theme selection and welcome message are shown only once
-theme_selected=false
-welcome_shown=false
+# فایل موقتی برای ذخیره وضعیت انتخاب تم و پیام خوش‌آمدگویی
+STATUS_FILE="/tmp/network_tool_status"
+
+# بررسی اینکه فایل وضعیت وجود دارد یا نه
+if [ ! -f "$STATUS_FILE" ]; then
+    # اگر وجود نداشت، فایل را ایجاد می‌کنیم
+    echo "theme_selected=false" > "$STATUS_FILE"
+    echo "welcome_shown=false" >> "$STATUS_FILE"
+fi
+
+# خواندن وضعیت از فایل
+source "$STATUS_FILE"
 
 # Function to choose theme (only once)
 choose_theme() {
@@ -34,7 +43,8 @@ choose_theme() {
                 export DIALOGRC="$BASE_DIR/dark_dialogrc"
                 ;;
         esac
-        theme_selected=true  # Mark the theme as selected
+        # ثبت اینکه تم انتخاب شده است
+        sed -i 's/theme_selected=false/theme_selected=true/' "$STATUS_FILE"
     fi
 }
 
@@ -42,7 +52,8 @@ choose_theme() {
 welcome_message() {
     if [ "$welcome_shown" = false ]; then
         dialog --colors --title "Welcome" --msgbox "\n\Zb\Z4Welcome to the Network Management Tool!\Zn\n\nThis tool helps you manage network configurations and view system information in an intuitive interface." 10 60
-        welcome_shown=true  # Mark the welcome message as shown
+        # ثبت اینکه پیام خوش‌آمدگویی نمایش داده شده است
+        sed -i 's/welcome_shown=false/welcome_shown=true/' "$STATUS_FILE"
     fi
 }
 
@@ -88,11 +99,11 @@ main_menu() {
 
     choice=$(<tempfile)
     case $choice in
-        1) clear;$BASE_DIR/Module/network_config.sh "$0" "return_to_menu" ;;
-        2) clear;$BASE_DIR/Module/firewall_management.sh "$0" "return_to_menu" ;;
-        3) clear;$BASE_DIR/Module/ovs_management.sh "$0" "return_to_menu" ;;
-        4) clear;$BASE_DIR/Module/network_monitoring.sh "$0" "return_to_menu" ;;
-        5) clear;$BASE_DIR/install.sh "$0" "return_to_menu" ;;
+        1) clear;$BASE_DIR/Module/network_config.sh ;;
+        2) clear;$BASE_DIR/Module/firewall_management.sh ;;
+        3) clear;$BASE_DIR/Module/ovs_management.sh ;;
+        4) clear;$BASE_DIR/Module/network_monitoring.sh ;;
+        5) clear;$BASE_DIR/install.sh ;;
         6) exit_script ;;
         *) echo "Invalid option"; main_menu ;;
     esac
@@ -106,12 +117,8 @@ exit_script() {
 
 trap "rm -f tempfile" EXIT
 
-# Check if we're returning from a module
-if [ "$2" = "return_to_menu" ]; then
-    main_menu  # Skip theme and welcome message, directly to the menu
-else
-    make_modules_executable
-    choose_theme  # Only once
-    welcome_message  # Only once
-    main_menu  # Main menu
-fi
+# اجرای توابع برای اولین بار
+make_modules_executable
+choose_theme  # فقط یکبار
+welcome_message  # فقط یکبار
+main_menu  # نمایش منوی اصلی
