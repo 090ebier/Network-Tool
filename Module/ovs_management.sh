@@ -1067,7 +1067,7 @@ function ovs_management(){
                 1 "\Zb\Z2Backup Configuration\Zn" \
                 2 "\Zb\Z2Restore Configuration\Zn" \
                 3 "\Zb\Z2Delete Backup Configuration\Zn" \
-                4 "\Zb\Z1Return to Previous Menu\Zn" \ )
+                4 "\Zb\Z1Return to Previous Menu\Zn" )
             # بررسی لغو عملیات
             if [ $? -ne 0 ]; then continue; fi
 
@@ -1075,7 +1075,7 @@ function ovs_management(){
                 1) backup_ovs_config ;;
                 2) restore_ovs_config ;;
                 3) delete_ovs_backup ;;
-                4) break ; ovs_management;;
+                4) break ;;
                 *) show_msg "\Zb\Z1Invalid choice!\Zn" ;;
             esac
             ;;
