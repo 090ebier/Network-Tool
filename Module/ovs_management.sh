@@ -1031,68 +1031,62 @@ ovs_service_status() {
     fi
 }
 
-function ovs_management(){
-    dialog_height=20
-    dialog_width=60
+# Main Menu
+function ovs_managemanet(){
+while true; do
+    get_terminal_size  # به‌روزرسانی ابعاد ترمینال
+    choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Open vSwitch Management\Zn" \
+        --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 10 \
+        1 "\Zb\Z2Manage Bridges\Zn" \
+        2 "\Zb\Z2Manage Ports\Zn" \
+        3 "\Zb\Z2Toggle Port (Enable/Disable)\Zn" \
+        4 "\Zb\Z2Configure VLAN\Zn" \
+        5 "\Zb\Z2Set VLAN IP\Zn" \
+        6 "\Zb\Z2Set QoS for Port\Zn" \
+        7 "\Zb\Z2Show Traffic Stats\Zn" \
+        8 "\Zb\Z2Backup/Restore OVS Config\Zn" \
+        9 "\Zb\Z2OVS Service Status\Zn" \
+        10 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
 
-    while true; do
-        get_terminal_size  
-        choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Open vSwitch Management\Zn" \
-            --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 10 \
-            1 "\Zb\Z2Manage Bridges\Zn" \
-            2 "\Zb\Z2Manage Ports\Zn" \
-            3 "\Zb\Z2Toggle Port (Enable/Disable)\Zn" \
-            4 "\Zb\Z2Configure VLAN\Zn" \
-            5 "\Zb\Z2Set VLAN IP\Zn" \
-            6 "\Zb\Z2Set QoS for Port\Zn" \
-            7 "\Zb\Z2Show Traffic Stats\Zn" \
-            8 "\Zb\Z2Backup/Restore OVS Config\Zn" \
-            9 "\Zb\Z2OVS Service Status\Zn" \
-            10 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
+    # بررسی لغو عملیات توسط کاربر
+    if [ $? -ne 0 ]; then
+        clear
+        exit 0
+    fi
 
-        # بررسی لغو عملیات توسط کاربر
-        if [ $? -ne 0 ]; then
-            clear
-            exit 0
-        fi
+    case $choice in
+        1) manage_bridges ;;
+        2) manage_ports ;;
+        3) toggle_port ;;
+        4) configure_vlan ;;
+        5) set_vlan_ip ;;
+        6) set_qos ;;
+        7) show_traffic_stats ;;
+        8)
+            sub_choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Backup/Restore OVS Config\Zn" \
+                --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 4 \
+                1 "\Zb\Z2Backup Configuration\Zn" \
+                2 "\Zb\Z2Restore Configuration\Zn" \
+                3 "\Zb\Z2Delete Backup Configuration\Zn" \
+                4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
-        echo "Choice: $choice"
+            # بررسی لغو عملیات
+            if [ $? -ne 0 ]; then continue; fi
 
-        case $choice in
-            1) manage_bridges ;;
-            2) manage_ports ;;
-            3) toggle_port ;;
-            4) configure_vlan ;;
-            5) set_vlan_ip ;;
-            6) set_qos ;;
-            7) show_traffic_stats ;;
-            8)
-                sub_choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Backup/Restore OVS Config\Zn" \
-                    --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 4 \
-                    1 "\Zb\Z2Backup Configuration\Zn" \
-                    2 "\Zb\Z2Restore Configuration\Zn" \
-                    3 "\Zb\Z2Delete Backup Configuration\Zn" \
-                    4 "\Zb\Z1Return to Previous Menu\Zn" )
-                
-                # بررسی لغو عملیات
-                if [ $? -ne 0 ]; then continue; fi
-
-                echo "Sub-choice: $sub_choice"
-
-                case $sub_choice in
-                    1) backup_ovs_config ;;
-                    2) restore_ovs_config ;;
-                    3) delete_ovs_backup ;;
-                    4) break ;;
-                    *) show_msg "\Zb\Z1Invalid choice!\Zn" ;;
-                esac
-                ;;
-            9) ovs_service_status ;;
-            10) $BASE_DIR/.././net-tool.sh; exit 0 ;;
-            *)
-                show_msg "\Zb\Z1Invalid choice!\Zn"
-                ;;
-        esac
+            case $sub_choice in
+                1) backup_ovs_config ;;
+                2) restore_ovs_config ;;
+                3) delete_ovs_backup ;;
+                4) ovs_managemanet ;;
+                *) show_msg "Invalid choice!" ;;
+            esac
+            ;;
+        9) ovs_service_status ;;
+        10) $BASE_DIR/.././net-tool.sh; exit 0 ;;
+        *)
+            break
+            ;;
+    esac
     done
 }
-ovs_management
+ovs_managemanet
