@@ -115,7 +115,7 @@ function ping_devices() {
 view_connections() {
     get_terminal_size
     # مسیر برای ذخیره‌سازی خروجی‌ها
-    backup_dir="$BASE_DIR/../backup_Log/Network_Monitoring/View_Connection/"
+    backup_dir="$HOME/net-tool_backup_Log/Network_Monitoring/View_Connection/"
 
     # ایجاد دایرکتوری‌ها اگر وجود ندارند
     if [ ! -d "$backup_dir" ]; then
@@ -272,7 +272,7 @@ function monitor_dns() {
     get_terminal_size  # تابع برای دریافت ابعاد ترمینال
 
     # مسیر جدید برای ذخیره لاگ‌ها
-    backup_dir="$BASE_DIR/../backup_Log/Network_Monitoring/Monitor_DNS"
+    backup_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Monitor_DNS"
     mkdir -p "$backup_dir"  # ایجاد دایرکتوری اگر وجود ندارد
 
     while true; do
@@ -516,7 +516,7 @@ function check_specific_port() {
 
 function monitor_ports_and_traffic() {
     get_terminal_size  # تنظیم ابعاد ترمینال
-    log_dir="$BASE_DIR/../backup_Log/Network_Monitoring/Monitor_Ports_And_Traffic"
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Monitor_Ports_And_Traffic"
 
     # ایجاد دایرکتوری اگر وجود نداشته باشد
     if [ ! -d "$log_dir" ]; then
@@ -714,7 +714,7 @@ function monitor_bandwidth() {
         save_log=$?
 
         if [[ $save_log -eq 0 ]]; then
-            log_dir="$BASE_DIR/../backup_Log/Network_Monitoring/Bandwidth"
+            log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Bandwidth"
             if [ ! -d "$log_dir" ]; then
                 mkdir -p "$log_dir"
                 if [[ $? -ne 0 ]]; then
@@ -774,7 +774,7 @@ function monitor_bandwidth() {
 
 generate_bandwidth_graph() {
     get_terminal_size  # فراخوانی تابع برای دریافت اندازه ترمینال
-    log_dir="$BASE_DIR/../backup_Log/Network_Monitoring/Bandwidth"
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Bandwidth"
     
     # بررسی وجود دایرکتوری لاگ‌ها
     if [ ! -d "$log_dir" ]; then
@@ -910,7 +910,7 @@ EOF
 
 generate_pdf_report() {
     get_terminal_size  # فراخوانی تابع برای تنظیم ابعاد دیالوگ
-    log_dir="$BASE_DIR/../backup_Log/Network_Monitoring/Bandwidth"
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Bandwidth"
     
     # بررسی وجود دایرکتوری لاگ‌ها
     if [ ! -d "$log_dir" ]; then
@@ -987,7 +987,7 @@ HTML(filename='$html_file').write_pdf('$pdf_file')
 
 save_and_send_report_via_telegram() {
     get_terminal_size  # استفاده از تابع برای کنترل اندازه
-    config_file="$BASE_DIR/../telegram_config.txt"
+    config_file="$HOME/net-tool/telegram_config.txt"
 
     # بررسی وجود فایل تنظیمات
     if [ ! -f "$config_file" ]; then
@@ -1011,7 +1011,7 @@ save_and_send_report_via_telegram() {
     fi
 
     # فیلتر کردن فایل‌های PDF از دایرکتوری
-    pdf_files=($(find "$BASE_DIR/../backup_Log/Network_Monitoring/Bandwidth/" -type f -name "*.pdf"))
+    pdf_files=($(find "$HOME/net-tool/backup_Log/Network_Monitoring/Bandwidth/" -type f -name "*.pdf"))
 
     if [[ ${#pdf_files[@]} -eq 0 ]]; then
         dialog --colors --msgbox "\Zb\Z1Error: No PDF files found in the directory.\Zn" 5 40
@@ -1077,7 +1077,7 @@ EOF
 
 monitor_resources() {
     get_terminal_size  # استفاده از تابع برای تعیین ابعاد دیالوگ
-    log_dir="$BASE_DIR/../backup_Log/Network_Monitoring/Monitor_Resources"
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Monitor_Resources"
     
     # بررسی و ایجاد دایرکتوری لاگ‌ها
     if [ ! -d "$log_dir" ]; then
@@ -1184,7 +1184,7 @@ monitor_resources() {
 
 view_logs() {
     get_terminal_size  # استفاده از تابع برای تعیین ابعاد دیالوگ
-    log_dir="$BASE_DIR/../backup_Log/Network_Monitoring/Monitor_Resources"
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Monitor_Resources"
 
     # بررسی وجود دایرکتوری لاگ‌ها
     if [ ! -d "$log_dir" ]; then
