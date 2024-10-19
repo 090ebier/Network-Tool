@@ -1,5 +1,17 @@
 #!/bin/bash
 BASE_DIR=$(dirname "$(readlink -f "$0")")
+# Function to dynamically get terminal size
+get_terminal_size() {
+    term_height=$(tput lines)
+    term_width=$(tput cols)
+    dialog_height=$((term_height - 5))
+    dialog_width=$((term_width - 10))
+    if [ "$dialog_height" -lt 15 ]; then dialog_height=15; fi
+    if [ "$dialog_width" -lt 50 ]; then dialog_width=50; fi
+}
+
+
+
 # Function to show the Interface Brief in table format
 show_interface_brief() {
     interfaces=$(ip -o link show | awk -F': ' '{print $2}')
@@ -142,6 +154,160 @@ set_ip_address() {
     show_interface_brief
 }
 
+
+
+manage_routes() {
+    get_terminal_size
+    
+    # تشخیص نوع پیکربندی شبکه
+    detect_network_config() {
+        if [ -f /etc/network/interfaces ]; then
+            echo "interfaces"
+        elif [ -d /etc/netplan ]; then
+            echo "netplan"
+        else
+            echo "unsupported"
+        fi
+    }
+
+    # منوی اصلی مدیریت روت‌ها
+    while true; do
+        action=$(dialog --colors --backtitle "\Zb\Z4Route Management\Zn" --title "\Zb\Z3Manage Routes\Zn" \
+            --menu "\n\Zb\Z3Choose an action:\Zn" "$dialog_height" "$dialog_width" 5 \
+            1 "\Zb\Z2Add Route\Zn" \
+            2 "\Zb\Z2Delete Route\Zn" \
+            3 "\Zb\Z2View Current Routes\Zn" \
+            4 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+
+        if [ $? -ne 0 ]; then return; fi
+
+        case $action in
+            1)  # افزودن روت جدید
+                destination=$(dialog --stdout --inputbox "Enter the destination network (e.g., 192.168.1.0/24):" "$dialog_height" "$dialog_width")
+                if [[ -z "$destination" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1No destination entered!\Zn" 5 40
+                    continue
+                fi
+
+                gateway=$(dialog --stdout --inputbox "Enter the gateway IP (e.g., 192.168.1.1):" "$dialog_height" "$dialog_width")
+                if [[ -z "$gateway" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1No gateway entered!\Zn" 5 40
+                    continue
+                fi
+
+                # دریافت لیست اینترفیس‌ها و نمایش به کاربر
+                interfaces=$(ip -o link show | awk -F': ' '{print $2}' | grep -v lo)  # دریافت لیست اینترفیس‌ها به جز lo
+
+                # آماده‌سازی لیست برای منوی dialog
+                interface_list=()
+                index=1
+                for iface in $interfaces; do
+                    interface_list+=("$index" "$iface")
+                    index=$((index + 1))
+                done
+
+                # نمایش منوی انتخاب اینترفیس به کاربر
+                selected_index=$(dialog --stdout --menu "Choose a network interface:" "$dialog_height" "$dialog_width" "${#interface_list[@]}" "${interface_list[@]}")
+                if [[ -z "$selected_index" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1No interface selected!\Zn" 5 40
+                    continue
+                fi
+
+                # انتخاب اینترفیس بر اساس ورودی کاربر
+                interface="${interface_list[$((selected_index * 2 - 1))]}"
+
+                # اجرای دستور برای افزودن روت
+                sudo ip route add "$destination" via "$gateway" dev "$interface"
+                if [[ $? -eq 0 ]]; then
+                    dialog --colors --msgbox "\Zb\Z2Route added successfully!\Zn" 5 40
+                else
+                    dialog --colors --msgbox "\Zb\Z1Failed to add route!\Zn" 5 40
+                    continue
+                fi
+                ;;
+
+            2)  # حذف روت
+                routes=$(ip route show)  # دریافت لیست روت‌های فعلی
+
+                if [[ -z "$routes" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1No routes available to delete!\Zn" 5 40
+                    continue
+                fi
+
+                # آماده‌سازی لیست روت‌ها برای نمایش در منوی dialog
+                route_list=()
+                index=1
+                while IFS= read -r route; do
+                    route_list+=("$index" "$route")
+                    index=$((index + 1))
+                done <<< "$routes"
+
+                # نمایش لیست روت‌ها به کاربر برای انتخاب
+                selected_route_index=$(dialog --stdout --menu "Choose a route to delete:" "$dialog_height" "$dialog_width" "${#route_list[@]}" "${route_list[@]}")
+                if [[ -z "$selected_route_index" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1No route selected!\Zn" 5 40
+                    continue
+                fi
+
+                # گرفتن روت انتخاب‌شده از لیست
+                selected_route="${route_list[$((selected_route_index * 2 - 1))]}"
+
+                # استخراج مقصد از روت انتخاب‌شده
+                destination=$(echo "$selected_route" | awk '{print $1}')
+
+            # حذف روت
+            dialog --yesno "Are you sure you want to delete the Route: $destination?" "$dialog_height" "$dialog_width"
+            response=$?
+            if [ $response -eq 0 ]; then
+                sudo ip route del "$destination"
+                if [ $? -eq 0 ]; then
+                    dialog --colors --msgbox "\Zb\Z2Route deleted successfully!\Zn" 5 40
+                else
+                    dialog --colors --msgbox "\Zb\Z1Failed to delete route!\Zn" 5 40
+                fi
+            else
+                dialog --msgbox "Route deletion canceled." 5 40
+            fi
+
+                ;;
+            3)  # نمایش روت‌های فعلی
+                routes=$(ip route show)  # دریافت لیست روت‌های فعلی
+
+                if [[ -z "$routes" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1No routes available!\Zn" 5 40
+                    return
+                fi
+
+                # آماده‌سازی فایل موقت برای ذخیره روت‌ها
+                temp_file=$(mktemp)
+
+                # عنوان ستون‌ها
+                echo -e "| Destination    | Gateway        | Interface |" > "$temp_file"
+                echo -e "-----------------------------------------------" >> "$temp_file"
+
+                # پردازش روت‌ها و مرتب‌سازی برای نمایش زیبا
+                echo "$routes" | awk '
+                {
+                    dest = ($1 == "default") ? "default" : $1;
+                    gw = ($2 == "via") ? $3 : "-";
+                    iface = ($NF ~ /^[a-zA-Z0-9]+$/) ? $NF : "-";
+                    printf "| %-14s | %-13s | %-9s |\n", dest, gw, iface;
+                }' >> "$temp_file"
+
+                # نمایش روت‌ها در قالب جدول
+                dialog --colors --title "\Zb\Z4Routing Table\Zn" --textbox "$temp_file" "$dialog_height" "$dialog_width"
+
+                # حذف فایل موقت
+                rm -f "$temp_file"
+                ;;
+
+            4)
+                return
+                ;;
+        esac
+    done
+}
+
 # Function to set DNS with colors and persistence option for both NetworkManager and Netplan
 set_dns() {
     dns_choice=$(dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4Set DNS\Zn" --menu "\n\Zb\Z3Choose DNS provider:\Zn" 15 60 5 \
@@ -200,21 +366,23 @@ set_hostname() {
 basic_linux_network_configuration() {
     while true; do
         option=$(dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4Basic Linux Network Configuration\Zn" \
-            --menu "\n\Zb\Z3Choose an option:\Zn" 15 60 6 \
+            --menu "\n\Zb\Z3Choose an option:\Zn" 15 60 7 \
             1 "\Zb\Z2Interface Brief\Zn" \
             2 "\Zb\Z2DNS Settings\Zn" \
             3 "\Zb\Z2Set IP Address\Zn" \
-            4 "\Zb\Z2Set DNS\Zn" \
-            5 "\Zb\Z2Set Hostname\Zn" \
-            6 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            4 "\Zb\Z2Route Management\Zn" \
+            5 "\Zb\Z2Set DNS\Zn" \
+            6 "\Zb\Z2Set Hostname\Zn" \
+            7 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $option in
             1) show_interface_brief ;;
             2) show_dns_settings ;;
             3) set_ip_address ;;
-            4) set_dns ;;
-            5) set_hostname ;;
-            6) $BASE_DIR/.././net-tool.sh; exit 0 ;;  # Return to main menu and close this script
+            4) manage_routes ;;
+            5) set_dns ;;
+            6) set_hostname ;;
+            7) $BASE_DIR/.././net-tool.sh; exit 0 ;;  # Return to main menu and close this script
         esac
     done
 }
