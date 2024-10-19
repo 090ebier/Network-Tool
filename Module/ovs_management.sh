@@ -1033,7 +1033,7 @@ ovs_service_status() {
 
 # Main Menu
 while true; do
-    get_terminal_size  # به‌روزرسانی ابعاد ترمینال
+    get_terminal_size  
     choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Open vSwitch Management\Zn" \
         --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 10 \
         1 "\Zb\Z2Manage Bridges\Zn" \
@@ -1063,11 +1063,11 @@ while true; do
         7) show_traffic_stats ;;
         8)
             sub_choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Backup/Restore OVS Config\Zn" \
-                --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 3 \
+                --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 4 \
                 1 "\Zb\Z2Backup Configuration\Zn" \
                 2 "\Zb\Z2Restore Configuration\Zn" \
-                3 "\Zb\Z2Delete Backup Configuration\Zn" 3>&1 1>&2 2>&3)
-
+                3 "\Zb\Z2Delete Backup Configuration\Zn")
+                4 "\Zb\Z1Return to Previous Menu\Zn"
             # بررسی لغو عملیات
             if [ $? -ne 0 ]; then continue; fi
 
@@ -1075,6 +1075,7 @@ while true; do
                 1) backup_ovs_config ;;
                 2) restore_ovs_config ;;
                 3) delete_ovs_backup ;;
+                4) break;;
                 *) show_msg "\Zb\Z1Invalid choice!\Zn" ;;
             esac
             ;;
