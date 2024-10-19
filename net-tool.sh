@@ -7,17 +7,43 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-
 BASE_DIR=$(dirname "$(readlink -f "$0")")
-# Title of the script
 TITLE="Network Management Tool"
 
-# Use a dark theme dialog configuration file if it exists in the same directory
-export DIALOGRC="$BASE_DIR/dark_dialogrc"
+# Flags to ensure theme selection and welcome message are shown only once
+theme_selected=false
+welcome_shown=false
 
-# Function to display a welcome message
+# Function to choose theme (only once)
+choose_theme() {
+    if [ "$theme_selected" = false ]; then
+        dialog --colors --title "Choose Theme" --menu "\n\Zb\Z4Choose your preferred theme:\Zn" 10 60 2 \
+            1 "Dark Theme" \
+            2 "Light Theme" 2>tempfile
+
+        choice=$(<tempfile)
+        case $choice in
+            1)
+                export DIALOGRC="$BASE_DIR/dark_dialogrc"
+                ;;
+            2)
+                unset DIALOGRC
+                ;;
+            *)
+                echo "Invalid option, defaulting to Dark Theme"
+                export DIALOGRC="$BASE_DIR/dark_dialogrc"
+                ;;
+        esac
+        theme_selected=true  # Mark the theme as selected
+    fi
+}
+
+# Function to display a welcome message (only once)
 welcome_message() {
-    dialog --colors --title "Welcome" --msgbox "\n\Zb\Z4Welcome to the Network Management Tool!\Zn\n\nThis tool helps you manage network configurations and view system information in an intuitive interface." 10 60
+    if [ "$welcome_shown" = false ]; then
+        dialog --colors --title "Welcome" --msgbox "\n\Zb\Z4Welcome to the Network Management Tool!\Zn\n\nThis tool helps you manage network configurations and view system information in an intuitive interface." 10 60
+        welcome_shown=true  # Mark the welcome message as shown
+    fi
 }
 
 make_modules_executable() {
@@ -28,16 +54,11 @@ make_modules_executable() {
     chmod +x $BASE_DIR/install.sh
 }
 
-
-# Function to determine network configuration type
 determine_network_config() {
-    # بررسی اینکه آیا Netplan در سیستم فعال است
     if systemctl is-active systemd-networkd > /dev/null 2>&1 || [ -d /etc/netplan ] && [ "$(ls -A /etc/netplan)" ]; then
         echo "Netplan"
-    # بررسی اینکه آیا NetworkManager در حال استفاده است
     elif systemctl is-active NetworkManager > /dev/null 2>&1; then
         echo "NetworkManager"
-    # بررسی اینکه آیا فایل های تنظیمات سنتی interfaces وجود دارند
     elif [ -f /etc/network/interfaces ]; then
         echo "Interfaces file"
     else
@@ -45,9 +66,6 @@ determine_network_config() {
     fi
 }
 
-
-
-# Display system information within the main menu
 main_menu() {
     OS_VERSION=$(uname -r)
     HOSTNAME=$(hostname)
@@ -70,29 +88,25 @@ main_menu() {
 
     choice=$(<tempfile)
     case $choice in
-        1) clear;$BASE_DIR/Module/network_config.sh ;;        # فراخوانی اسکریپت جداگانه برای تنظیمات شبکه
-        2) clear;$BASE_DIR/Module/firewall_management.sh ;;   # فراخوانی اسکریپت جداگانه برای مدیریت فایروال
-        3) clear;$BASE_DIR/Module/ovs_management.sh ;;        # فراخوانی اسکریپت جداگانه برای Open vSwitch
-        4) clear;$BASE_DIR/Module/network_monitoring.sh ;;    # فراخوانی اسکریپت جداگانه برای نظارت بر شبکه
-        5) clear;$BASE_DIR/install.sh ;;         
-        6) exit_script ;;                # تابع داخلی برای خروج از برنامه
+        1) clear;$BASE_DIR/Module/network_config.sh ;;
+        2) clear;$BASE_DIR/Module/firewall_management.sh ;;
+        3) clear;$BASE_DIR/Module/ovs_management.sh ;;
+        4) clear;$BASE_DIR/Module/network_monitoring.sh ;;
+        5) clear;$BASE_DIR/install.sh ;;
+        6) exit_script ;;
         *) echo "Invalid option"; main_menu ;;
     esac
 }
 
-# Exit script with a goodbye message
 exit_script() {
     dialog --colors --title "Goodbye" --msgbox "\n\Zb\Z1Thank you for using the Network Management Tool!\Zn\n\nGoodbye!" 10 50
     clear
     exit 0
 }
 
-# Clean up temporary file upon exit
 trap "rm -f tempfile" EXIT
 
-
-# Ensure all module scripts are executable
 make_modules_executable
-# Start the script with a welcome message and display the main menu
-welcome_message
-main_menu
+choose_theme  # Only once
+welcome_message  # Only once
+main_menu  # Main menu
