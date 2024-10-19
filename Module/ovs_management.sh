@@ -1031,8 +1031,8 @@ ovs_service_status() {
     fi
 }
 
-# Main Menu
-while true; do
+function ovs_management(){
+    while true; do
     get_terminal_size  
     choice=$(dialog --colors --backtitle "\Zb\Z4Open vSwitch Management\Zn" --title "\Zb\Z3Open vSwitch Management\Zn" \
         --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 10 \
@@ -1075,7 +1075,7 @@ while true; do
                 1) backup_ovs_config ;;
                 2) restore_ovs_config ;;
                 3) delete_ovs_backup ;;
-                4) return;;
+                4) break ; ovs_management;;
                 *) show_msg "\Zb\Z1Invalid choice!\Zn" ;;
             esac
             ;;
@@ -1086,3 +1086,5 @@ while true; do
             ;;
     esac
 done
+}
+ovs_management
