@@ -173,7 +173,7 @@ set_ip_address() {
         if [ $? -ne 0 ]; then
             return  # Cancel pressed, return to previous menu
         fi
-
+        sudo ip addr flush dev "$selected_iface"
         # Set the static IP configuration
         sudo ip addr add "$ip_addr/$subnet_mask" dev "$selected_iface"
         sudo ip route add default via "$gateway"
