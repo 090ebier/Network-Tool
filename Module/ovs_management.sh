@@ -1066,7 +1066,7 @@ function ovs_management(){
                 --menu "\nChoose an action:" "$dialog_height" "$dialog_width" 4 \
                 1 "\Zb\Z2Backup Configuration\Zn" \
                 2 "\Zb\Z2Restore Configuration\Zn" \
-                3 "\Zb\Z2Delete Backup Configuration\Zn"
+                3 "\Zb\Z2Delete Backup Configuration\Zn" \
                 4 "\Zb\Z1Return to Previous Menu\Zn" \ 3>&1 1>&2 2>&3 )
             # بررسی لغو عملیات
             if [ $? -ne 0 ]; then continue; fi
