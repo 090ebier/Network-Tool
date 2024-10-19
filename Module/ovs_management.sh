@@ -906,7 +906,7 @@ function show_traffic_stats() {
 # 8. Backup OVS Configuration
 function backup_ovs_config() {
     # مسیر فعلی و فولدر OVS_backup
-    backup_dir="$(pwd)/OVS_backup"
+    backup_dir="$HOME/net-tool_backup_Log/OVS_backup"
     
     # اگر فولدر OVS_backup وجود ندارد، آن را ایجاد کن
     if [ ! -d "$backup_dir" ]; then
@@ -925,7 +925,7 @@ function backup_ovs_config() {
 # 9. Restore OVS Configuration
 function restore_ovs_config() {
     # مسیر فعلی و فولدر OVS_backup
-    backup_dir="$(pwd)/OVS_backup"
+    backup_dir="$HOME/net-tool_backup_Log/OVS_backup"
     
     # بررسی اینکه آیا فایل بکاپی در فولدر وجود دارد
     backup_files=$(ls "$backup_dir"/ovs_backup_*.txt 2>/dev/null)
@@ -963,7 +963,7 @@ function restore_ovs_config() {
 }
 function delete_ovs_backup() {
     # مسیر فعلی و فولدر OVS_backup
-    backup_dir="$(pwd)/OVS_backup"
+    backup_dir="$HOME/net-tool_backup_Log/OVS_backup"
 
     # بررسی اینکه آیا فایل بکاپی در فولدر وجود دارد
     backup_files=$(ls "$backup_dir"/ovs_backup_*.txt 2>/dev/null)
