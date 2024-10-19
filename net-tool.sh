@@ -1,6 +1,6 @@
 #!/bin/bash
 
-trap "clear; echo 'Exiting Network Tool Management...'; exit" SIGINT
+trap "clear; rm -f /tmp/network_tool_status; echo 'Exiting Network Tool Management...'; exit" SIGINT
 if [ "$EUID" -ne 0 ]; then
     echo "This script requires root privileges. Restarting with sudo..."
     exec sudo "$0" "$@"
@@ -111,11 +111,14 @@ main_menu() {
 
 exit_script() {
     dialog --colors --title "Goodbye" --msgbox "\n\Zb\Z1Thank you for using the Network Management Tool!\Zn\n\nGoodbye!" 10 50
+    # پاک کردن فایل وضعیت هنگام خروج
+    rm -f "$STATUS_FILE"
     clear
     exit 0
 }
 
-trap "rm -f tempfile" EXIT
+# پاک کردن فایل وضعیت هنگام خروج با سیگنال‌های مختلف
+trap "rm -f tempfile; rm -f $STATUS_FILE" EXIT
 
 # اجرای توابع برای اولین بار
 make_modules_executable
