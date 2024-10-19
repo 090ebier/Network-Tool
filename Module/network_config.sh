@@ -199,7 +199,6 @@ EOF"
     else
         # DHCP configuration
         # DO NOT flush existing IP configuration yet to avoid losing SSH connection
-        sudo ip addr flush dev "$selected_iface"
         if command -v dhclient > /dev/null 2>&1; then
             sudo dhclient "$selected_iface"
             dhcp_method="dhclient"
@@ -213,6 +212,7 @@ EOF"
 
         # If DHCP was successful, flush previous IP configuration
         if [ $? -eq 0 ]; then
+
             if is_netplan_active; then
                 sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
 network:
@@ -242,12 +242,12 @@ EOF"
 manage_routes() {
     get_terminal_size
     
-    # تشخیص نوع پیکربندی شبکه
+    # تابع تشخیص نوع پیکربندی شبکه
     detect_network_config() {
-        if [ -f /etc/network/interfaces ]; then
-            echo "interfaces"
-        elif [ -d /etc/netplan ]; then
+        if [ -d /etc/netplan ] && [ "$(ls -A /etc/netplan)" ]; then
             echo "netplan"
+        elif [ -f /etc/network/interfaces ]; then
+            echo "interfaces"
         else
             echo "unsupported"
         fi
@@ -307,6 +307,33 @@ manage_routes() {
                     dialog --colors --msgbox "\Zb\Z1Failed to add route!\Zn" 5 40
                     continue
                 fi
+
+                # پرسش از کاربر برای ذخیره‌سازی دائمی
+                dialog --yesno "Do you want to save this route persistently?" 10 50
+                response=$?
+                if [ $response -eq 0 ]; then
+                    # تشخیص نوع پیکربندی شبکه
+                    config_type=$(detect_network_config)
+
+                    if [ "$config_type" == "interfaces" ]; then
+                        echo -e "up ip route add $destination via $gateway dev $interface" | sudo tee -a /etc/network/interfaces > /dev/null
+                        dialog --colors --msgbox "\Zb\Z2Route saved permanently in /etc/network/interfaces.\Zn" 5 40
+                    elif [ "$config_type" == "netplan" ]; then
+                        sudo bash -c "cat << EOF >> /etc/netplan/99-custom-routes.yaml
+network:
+    version: 2
+    ethernets:
+        $interface:
+            routes:
+                - to: $destination
+                  via: $gateway
+EOF"
+                        sudo netplan apply
+                        dialog --colors --msgbox "\Zb\Z2Route saved permanently in Netplan.\Zn" 5 40
+                    else
+                        dialog --colors --msgbox "\Zb\Z1Unsupported network configuration. Route not saved permanently.\Zn" 5 40
+                    fi
+                fi
                 ;;
 
             2)  # حذف روت
@@ -338,21 +365,21 @@ manage_routes() {
                 # استخراج مقصد از روت انتخاب‌شده
                 destination=$(echo "$selected_route" | awk '{print $1}')
 
-            # حذف روت
-            dialog --yesno "Are you sure you want to delete the Route: $destination?" "$dialog_height" "$dialog_width"
-            response=$?
-            if [ $response -eq 0 ]; then
-                sudo ip route del "$destination"
-                if [ $? -eq 0 ]; then
-                    dialog --colors --msgbox "\Zb\Z2Route deleted successfully!\Zn" 5 40
+                # حذف روت
+                dialog --yesno "Are you sure you want to delete the Route: $destination?" "$dialog_height" "$dialog_width"
+                response=$?
+                if [ $response -eq 0 ]; then
+                    sudo ip route del "$destination"
+                    if [ $? -eq 0 ]; then
+                        dialog --colors --msgbox "\Zb\Z2Route deleted successfully!\Zn" 5 40
+                    else
+                        dialog --colors --msgbox "\Zb\Z1Failed to delete route!\Zn" 5 40
+                    fi
                 else
-                    dialog --colors --msgbox "\Zb\Z1Failed to delete route!\Zn" 5 40
+                    dialog --msgbox "Route deletion canceled." 5 40
                 fi
-            else
-                dialog --msgbox "Route deletion canceled." 5 40
-            fi
-
                 ;;
+
             3)  # نمایش روت‌های فعلی
                 routes=$(ip route show)  # دریافت لیست روت‌های فعلی
 
