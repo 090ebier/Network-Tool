@@ -212,7 +212,7 @@ EOF"
 
         # If DHCP was successful, flush previous IP configuration
         if [ $? -eq 0 ]; then
-
+            sudo ip addr flush dev "$selected_iface"
             if is_netplan_active; then
                 sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
 network:
