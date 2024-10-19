@@ -310,12 +310,13 @@ manage_routes() {
 
 # Function to set DNS with colors and persistence option for both NetworkManager and Netplan
 set_dns() {
-    dns_choice=$(dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4Set DNS\Zn" --menu "\n\Zb\Z3Choose DNS provider:\Zn" 15 60 5 \
+    dns_choice=$(dialog --colors --backtitle "Network Management Tool" --title "\Zb\Z4Set DNS\Zn" --menu "\n\Zb\Z3Choose DNS provider:\Zn" 15 60 6 \
         1 "\Zb\Z3Google DNS (8.8.8.8 / 8.8.4.4, 2001:4860:4860::8888 / 2001:4860:4860::8844)\Zn" \
         2 "\Zb\Z3Cloudflare DNS (1.1.1.1 / 1.0.0.1, 2606:4700:4700::1111 / 2606:4700:4700::1001)\Zn" \
         3 "\Zb\Z3Quad9 DNS (9.9.9.9 / 149.112.112.112, 2620:fe::fe / 2620:fe::9)\Zn" \
         4 "\Zb\Z3OpenDNS (208.67.222.222 / 208.67.220.220, 2620:119:35::35 / 2620:119:53::53)\Zn" \
-        5 "\Zb\Z1Custom DNS\Zn" 3>&1 1>&2 2>&3)
+        5 "\Zb\Z3ShekanDNS (178.22.122.100 / 185.51.200.2)\Zn" \
+        6 "\Zb\Z1Custom DNS\Zn" 3>&1 1>&2 2>&3)
 
     if [ $? -ne 0 ]; then
         return  # Cancel pressed, return to the previous menu
@@ -327,7 +328,8 @@ set_dns() {
         2) dns_servers_ipv4="1.1.1.1 1.0.0.1"; dns_servers_ipv6="2606:4700:4700::1111 2606:4700:4700::1001" ;;
         3) dns_servers_ipv4="9.9.9.9 149.112.112.112"; dns_servers_ipv6="2620:fe::fe 2620:fe::9" ;;
         4) dns_servers_ipv4="208.67.222.222 208.67.220.220"; dns_servers_ipv6="2620:119:35::35 2620:119:53::53" ;;
-        5) 
+        5) dns_servers_ipv4="178.22.122.100  185.51.200.2" ;;
+        6) 
             dns_servers=$(dialog --colors --title "\Zb\Z4Custom DNS\Zn" --inputbox "Enter custom DNS servers (comma-separated):" 10 50 3>&1 1>&2 2>&3) 
             dns_servers_ipv4=$(echo "$dns_servers" | tr ',' ' ' | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
             dns_servers_ipv6=$(echo "$dns_servers" | tr ',' ' ' | grep -Eo '([0-9a-fA-F:]+:+)+[0-9a-fA-F]+')
