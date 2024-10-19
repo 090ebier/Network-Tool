@@ -199,6 +199,7 @@ EOF"
     else
         # DHCP configuration
         # DO NOT flush existing IP configuration yet to avoid losing SSH connection
+        sudo ip addr flush dev "$selected_iface"
         if command -v dhclient > /dev/null 2>&1; then
             sudo dhclient "$selected_iface"
             dhcp_method="dhclient"
@@ -212,7 +213,6 @@ EOF"
 
         # If DHCP was successful, flush previous IP configuration
         if [ $? -eq 0 ]; then
-            sudo ip addr flush dev "$selected_iface"
             if is_netplan_active; then
                 sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
 network:
