@@ -19,12 +19,12 @@ if [ -z "$WELCOME_SHOWN" ]; then
     export WELCOME_SHOWN=false
 fi
 
-# Function to choose theme (only once)
-choose_theme() {
+# ترکیب خوش‌آمدگویی و انتخاب تم
+welcome_and_choose_theme() {
     if [ "$THEME_SELECTED" = false ]; then
-        dialog --colors --title "Choose Theme" --menu "\n\Zb\Z4Choose your preferred theme:\Zn" 10 60 2 \
-            1 "Dark Theme" \
-            2 "Light Theme" 2>tempfile
+        dialog --colors --title "Welcome & Choose Theme" --menu "\n\Zb\Z4Welcome to the Network Management Tool!\Zn\n\n\Zb\Z3Please choose your preferred theme:\Zn" 15 60 2 \
+            1 "\Zb\Z0Dark Theme\Zn" \
+            2 "\Zb\Z7Light Theme\Zn" 2>tempfile
 
         choice=$(<tempfile)
         case $choice in
@@ -41,13 +41,6 @@ choose_theme() {
         esac
         # ثبت اینکه تم انتخاب شده است
         export THEME_SELECTED=true
-    fi
-}
-
-# Function to display a welcome message (only once)
-welcome_message() {
-    if [ "$WELCOME_SHOWN" = false ]; then
-        dialog --colors --title "Welcome" --msgbox "\n\Zb\Z4Welcome to the Network Management Tool!\Zn\n\nThis tool helps you manage network configurations and view system information in an intuitive interface." 10 60
         # ثبت اینکه پیام خوش‌آمدگویی نمایش داده شده است
         export WELCOME_SHOWN=true
     fi
@@ -116,6 +109,5 @@ trap "rm -f tempfile" EXIT
 
 # اجرای توابع برای اولین بار
 make_modules_executable
-choose_theme  # فقط یکبار
-welcome_message  # فقط یکبار
+welcome_and_choose_theme  # خوش‌آمدگویی و انتخاب تم یکجا
 main_menu  # نمایش منوی اصلی
