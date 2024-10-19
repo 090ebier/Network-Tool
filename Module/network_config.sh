@@ -209,8 +209,9 @@ EOF"
             dialog --msgbox "Neither dhclient nor dhcpcd found. Unable to configure DHCP." 10 50
             return
         fi
-        
-            
+
+        # If DHCP was successful, flush previous IP configuration
+        if [ $? -eq 0 ]; then
 
             if is_netplan_active; then
                 sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
@@ -233,6 +234,7 @@ EOF"
 
     show_interface_brief
 }
+
 
 
 
