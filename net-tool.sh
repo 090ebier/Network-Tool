@@ -1,6 +1,6 @@
 #!/bin/bash
 
-trap "clear; rm -f /tmp/network_tool_status; echo 'Exiting Network Tool Management...'; exit" SIGINT
+trap "clear; echo 'Exiting Network Tool Management...'; exit" SIGINT
 if [ "$EUID" -ne 0 ]; then
     echo "This script requires root privileges. Restarting with sudo..."
     exec sudo "$0" "$@"
@@ -10,22 +10,18 @@ fi
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 TITLE="Network Management Tool"
 
-# فایل موقتی برای ذخیره وضعیت انتخاب تم و پیام خوش‌آمدگویی
-STATUS_FILE="/tmp/network_tool_status"
-
-# بررسی اینکه فایل وضعیت وجود دارد یا نه
-if [ ! -f "$STATUS_FILE" ]; then
-    # اگر وجود نداشت، فایل را ایجاد می‌کنیم
-    echo "theme_selected=false" > "$STATUS_FILE"
-    echo "welcome_shown=false" >> "$STATUS_FILE"
+# استفاده از متغیرهای محیطی برای مدیریت تم و پیام خوش‌آمدگویی
+if [ -z "$THEME_SELECTED" ]; then
+    export THEME_SELECTED=false
 fi
 
-# خواندن وضعیت از فایل
-source "$STATUS_FILE"
+if [ -z "$WELCOME_SHOWN" ]; then
+    export WELCOME_SHOWN=false
+fi
 
 # Function to choose theme (only once)
 choose_theme() {
-    if [ "$theme_selected" = false ]; then
+    if [ "$THEME_SELECTED" = false ]; then
         dialog --colors --title "Choose Theme" --menu "\n\Zb\Z4Choose your preferred theme:\Zn" 10 60 2 \
             1 "Dark Theme" \
             2 "Light Theme" 2>tempfile
@@ -44,16 +40,16 @@ choose_theme() {
                 ;;
         esac
         # ثبت اینکه تم انتخاب شده است
-        sed -i 's/theme_selected=false/theme_selected=true/' "$STATUS_FILE"
+        export THEME_SELECTED=true
     fi
 }
 
 # Function to display a welcome message (only once)
 welcome_message() {
-    if [ "$welcome_shown" = false ]; then
+    if [ "$WELCOME_SHOWN" = false ]; then
         dialog --colors --title "Welcome" --msgbox "\n\Zb\Z4Welcome to the Network Management Tool!\Zn\n\nThis tool helps you manage network configurations and view system information in an intuitive interface." 10 60
         # ثبت اینکه پیام خوش‌آمدگویی نمایش داده شده است
-        sed -i 's/welcome_shown=false/welcome_shown=true/' "$STATUS_FILE"
+        export WELCOME_SHOWN=true
     fi
 }
 
@@ -111,14 +107,12 @@ main_menu() {
 
 exit_script() {
     dialog --colors --title "Goodbye" --msgbox "\n\Zb\Z1Thank you for using the Network Management Tool!\Zn\n\nGoodbye!" 10 50
-    # پاک کردن فایل وضعیت هنگام خروج
-    rm -f "$STATUS_FILE"
     clear
     exit 0
 }
 
-# پاک کردن فایل وضعیت هنگام خروج با سیگنال‌های مختلف
-trap "rm -f tempfile; rm -f $STATUS_FILE" EXIT
+# پاک کردن فایل موقتی هنگام خروج
+trap "rm -f tempfile" EXIT
 
 # اجرای توابع برای اولین بار
 make_modules_executable
