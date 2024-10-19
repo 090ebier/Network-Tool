@@ -27,7 +27,7 @@ manage_bridges() {
         1 "\Zb\Z2Add Bridge\Zn" \
         2 "\Zb\Z2Delete Bridge\Zn" \
         3 "\Zb\Z2View Current Bridges\Zn" \
-        4 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+        4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
     
     if [ $? -ne 0 ]; then return; fi  # Return if cancel or error
 
@@ -128,7 +128,7 @@ function manage_ports() {
         1 "\Zb\Z2Add Port\Zn" \
         2 "\Zb\Z2Delete Port\Zn" \
         3 "\Zb\Z2View Ports Status\Zn" \
-        4 "\Zb\Z1Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+        4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
     # بررسی لغو عملیات توسط کاربر
     if [ $? -ne 0 ]; then
@@ -465,8 +465,8 @@ function configure_vlan() {
         --menu "\nVLAN Configuration for Port $port_choice:" "$dialog_height" "$dialog_width" 4 \
         1 "\Zb\Z2Configure VLAN\Zn" \
         2 "\Zb\Z3View VLAN Status\Zn" \
-        3 "\Zb\Z1Remove VLAN\Zn" \
-        4 "\Zb\Z4Back to Main Menu\Zn" 3>&1 1>&2 2>&3)
+        3 "\Zb\Z4Remove VLAN\Zn" \
+        4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
     if [ $? -ne 0 ]; then
         configure_vlan  
