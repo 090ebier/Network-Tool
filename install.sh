@@ -111,4 +111,4 @@ else
     exit 1
 fi
 
-echo "Installation complete! You can now run 'net-tool' from the terminal."
+clear;echo "Installation complete! You can now run 'net-tool' from the terminal."
