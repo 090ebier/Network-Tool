@@ -1,4 +1,7 @@
 #!/bin/bash
+
+trap "clear; echo 'Exiting...'; exit" SIGINT
+
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 # Function to dynamically get terminal size
 get_terminal_size() {
