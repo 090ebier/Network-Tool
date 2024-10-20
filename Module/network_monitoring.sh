@@ -13,7 +13,6 @@ get_terminal_size() {
 
 # Function to ping devices and display live results
 
-# تابع پینگ دستگاه‌ها و نمایش نتایج به‌صورت زنده
 function ping_devices() {
     get_terminal_size
 
@@ -115,7 +114,7 @@ function ping_devices() {
 view_connections() {
     get_terminal_size
     # مسیر برای ذخیره‌سازی خروجی‌ها
-    backup_dir="$HOME/net-tool_backup_Log/Network_Monitoring/View_Connection/"
+    backup_dir="$HOME/net-tool/backup_Log/Network_Monitoring/View_Connection/"
 
     # ایجاد دایرکتوری‌ها اگر وجود ندارند
     if [ ! -d "$backup_dir" ]; then
