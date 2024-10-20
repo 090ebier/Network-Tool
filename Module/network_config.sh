@@ -192,6 +192,7 @@ network:
                 - $ip_addr/$subnet_mask
             gateway4: $gateway
 EOF"
+            sudo chmod 600 /etc/netplan/*.yaml
             sudo netplan apply
             dialog --msgbox "Static IP configuration applied and saved in Netplan." 10 50
         else
@@ -224,6 +225,7 @@ network:
         $selected_iface:
             dhcp4: yes
 EOF"
+               sudo chmod 600 /etc/netplan/*.yaml
                 sudo netplan apply
                 dialog --msgbox "DHCP configuration applied using $dhcp_method and saved in Netplan." 10 50
             else
@@ -331,6 +333,7 @@ network:
                 - to: $destination
                   via: $gateway
 EOF"
+                        sudo chmod 600 /etc/netplan/*.yaml
                         sudo netplan apply
                         dialog --colors --msgbox "\Zb\Z2Route saved permanently in Netplan.\Zn" 5 40
                     else
