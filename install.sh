@@ -76,6 +76,7 @@ install_dependencies() {
     check_and_install dnsutils  # for dig
     check_and_install iproute2  # for ss
     check_and_install ifstat
+    check_and_install zip
     check_and_install python3
     check_and_install python3-pip
 
@@ -87,8 +88,7 @@ install_dependencies() {
     check_and_install libssl-dev
 
     echo "Installing Speedtest CLI..."
-    install_speedtest  # نصب Speedtest CLI
-
+    install_speedtest  
     echo "Checking for Python packages..."
 
     read -p "Do you want to upgrade pip to the latest version (Default NO)? (y/N): " UPGRADE_PIP
