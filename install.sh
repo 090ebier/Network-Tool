@@ -53,15 +53,6 @@ check_and_install_pip() {
     fi
 }
 
-install_speedtest() {
-    if ! command -v speedtest &> /dev/null; then
-        echo "Speedtest CLI is not installed. Installing..."
-        curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash || { echo "Failed to add speedtest-cli repository."; exit 1; }
-        sudo apt-get install speedtest -y || { echo "Failed to install speedtest."; exit 1; }
-    else
-        echo "Speedtest CLI is already installed."
-    fi
-}
 
 install_dependencies() {
     echo "Checking for system dependencies..."
@@ -77,6 +68,7 @@ install_dependencies() {
     check_and_install iproute2  # for ss
     check_and_install ifstat
     check_and_install zip
+    check_and_install speedtest-cli
     check_and_install python3
     check_and_install python3-pip
 
