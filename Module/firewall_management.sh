@@ -1040,8 +1040,8 @@ firewall_menu() {
             2 "\Zb\Z2Manage Stateful/Stateless Rules\Zn" \
             3 "\Zb\Z2Manage NAT Rules\Zn" \
             4 "\Zb\Z2Manage ICMP Rules\Zn" \
-            5 "\Zb\Z2Show Firewall Status\Zn" \
-            6 "\Zb\Z2Configure Port Knocking\Zn" \
+            5 "\Zb\Z2Configure Port Knocking\Zn" \
+            6 "\Zb\Z2Show Firewall Status\Zn" \
             7 "\Zb\Z2Backup & Restore Rules\Zn" \
             8 "\Zb\Z2Save Rules Across Reboot\Zn" \
             9 "\Zb\Z2Reset & Clear Firewall\Zn" \
@@ -1066,8 +1066,8 @@ firewall_menu() {
                 ;;
             3) manage_nat_rules ;;
             4) manage_icmp_rules ;;
-            5) show_firewall_status ;;
-            6) configure_port_knocking ;;
+            5) configure_port_knocking ;;
+            6) show_firewall_status ;;
             7) backup_and_restore_rules ;;
             8) save_rules ;;
             9) reset_firewall ;;
