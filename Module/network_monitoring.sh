@@ -1365,14 +1365,14 @@ run_and_manage_speed_test() {
 
     # بررسی اینکه آیا speedtest-okla نصب شده است یا نه
     if ! command -v speedtest &> /dev/null; then
-        dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: speedtest-okla is not installed. Installing now...\Zn" 5 40
+        dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: speedtest is not installed. Installing now...\Zn" 5 40
         
         # نصب speedtest-okla
-        sudo apt update && sudo apt install speedtest -y
+        sudo apt update && sudo apt install speedtest-cli -y
         
         # بررسی موفقیت‌آمیز بودن نصب
         if ! command -v speedtest &> /dev/null; then
-            dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: Failed to install speedtest-okla.\Zn" 5 40
+            dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: Failed to install speedtest.\Zn" 5 40
             return 1
         fi
     fi
