@@ -36,6 +36,13 @@ Before you install and use the **Network Management Tool**, ensure that the foll
 
 To install the **Network Management Tool**, follow the steps below:
 
+If git and curl are not already installed, install them with the following command:
+
+   ```bash
+   apt-get update
+   apt-get install git curl -y
+   ```
+
 1. **Run the Installer:**
 
    You can use the following command to clone and install the tool directly:
