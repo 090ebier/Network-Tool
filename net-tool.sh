@@ -72,7 +72,7 @@ main_menu() {
         2 "\Zb\Z2Firewall Management (NFTables)\Zn" \
         3 "\Zb\Z2Open vSwitch Management\Zn" \
         4 "\Zb\Z2Network Monitoring\Zn" \
-        5 "\Zb\Z2Install Or Update Script\Zn" \
+        5 "\Zb\Z4Install Or Update Script\Zn" \
         6 "\Zb\Z3$THEME_OPTION\Zn" \
         7 "\Zb\Z1Exit\Zn" 2>tempfile
 
