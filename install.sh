@@ -102,6 +102,7 @@ install_dependencies() {
     check_and_install_pip matplotlib
     check_and_install_pip weasyprint
     check_and_install_pip requests
+    check_and_install_pip requests
 
     echo "All dependencies were successfully installed."
 }
