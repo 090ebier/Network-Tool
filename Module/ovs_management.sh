@@ -1083,7 +1083,7 @@ while true; do
             esac
             ;;
         9) ovs_service_status ;;
-        10) $BASE_DIR/.././net-tool.sh; exit 0 ;;
+        10) clear;$BASE_DIR/.././net-tool.sh; exit 0 ;;
         *)
             break
             ;;
