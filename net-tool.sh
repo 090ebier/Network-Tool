@@ -11,40 +11,9 @@ BASE_DIR=$(dirname "$(readlink -f "$0")")
 TITLE="Network Management Tool"
 
 # استفاده از متغیرهای محیطی برای مدیریت تم و پیام خوش‌آمدگویی
-if [ -z "$THEME_SELECTED" ]; then
-    export THEME_SELECTED=false
+if [ -z "$THEME" ]; then
+    export THEME="dark"  # تم پیش‌فرض دارک
 fi
-
-if [ -z "$WELCOME_SHOWN" ]; then
-    export WELCOME_SHOWN=false
-fi
-
-# ترکیب خوش‌آمدگویی و انتخاب تم
-welcome_and_choose_theme() {
-    if [ "$THEME_SELECTED" = false ]; then
-        dialog --colors --title "Welcome & Choose Theme" --menu "\n\Zb\Z4Welcome to the Network Management Tool!\Zn\n\n\Zb\Z3Please choose your preferred theme:\Zn" 15 60 2 \
-            1 "\Zb\Z0Dark Theme\Zn" \
-            2 "\Zb\Z7Light Theme\Zn" 2>tempfile
-
-        choice=$(<tempfile)
-        case $choice in
-            1)
-                export DIALOGRC="$BASE_DIR/dark_dialogrc"
-                ;;
-            2)
-                unset DIALOGRC
-                ;;
-            *)
-                echo "Invalid option, defaulting to Dark Theme"
-                export DIALOGRC="$BASE_DIR/dark_dialogrc"
-                ;;
-        esac
-        # ثبت اینکه تم انتخاب شده است
-        export THEME_SELECTED=true
-        # ثبت اینکه پیام خوش‌آمدگویی نمایش داده شده است
-        export WELCOME_SHOWN=true
-    fi
-}
 
 make_modules_executable() {
     chmod +x $BASE_DIR/Module/network_config.sh
@@ -66,6 +35,18 @@ determine_network_config() {
     fi
 }
 
+# تابع تغییر تم
+switch_theme() {
+    if [ "$THEME" = "dark" ]; then
+        unset DIALOGRC  # تنظیم به تم لایت
+        export THEME="light"
+    else
+        export DIALOGRC="$BASE_DIR/dark_dialogrc"  # تنظیم به تم دارک
+        export THEME="dark"
+    fi
+    main_menu  # بازگشت به منوی اصلی بعد از تغییر تم
+}
+
 main_menu() {
     OS_VERSION=$(uname -r)
     HOSTNAME=$(hostname)
@@ -78,22 +59,31 @@ main_menu() {
 
     SYSTEM_INFO="OS Version: \Zb\Z4$OS_VERSION\Zn\nHostname: \Zb\Z4$HOSTNAME\Zn\nCPU: \Zb\Z3$CPU_MODEL\Zn\nRAM: \Zb\Z3$RAM_TOTAL used: \Zb\Z3$RAM_USED\Zn\nDisk: \Zb\Z3$DISK_TOTAL used: \Zb\Z3$DISK_USED\Zn\nNetwork Config: \Zb\Z1$NETWORK_CONFIG\Zn"
 
-    dialog --colors --backtitle "$TITLE" --title "$TITLE" --menu "$SYSTEM_INFO\n\n\Zb\Z0Choose an option:\Zn" 20 70 6 \
+    # تغییر نام گزینه تم بر اساس تم فعلی
+    if [ "$THEME" = "dark" ]; then
+        THEME_OPTION="Switch to Light Theme"
+    else
+        THEME_OPTION="Switch to Dark Theme"
+    fi
+
+    dialog --colors --backtitle "$TITLE" --title "$TITLE" --menu "$SYSTEM_INFO\n\n\Zb\Z0Choose an option:\Zn" 20 70 7 \
         1 "\Zb\Z2Basic Linux Network Configuration\Zn" \
         2 "\Zb\Z2Firewall Management (NFTables)\Zn" \
         3 "\Zb\Z2Open vSwitch Management\Zn" \
         4 "\Zb\Z2Network Monitoring\Zn" \
         5 "\Zb\Z2Install Or Update Script\Zn" \
-        6 "\Zb\Z1Exit\Zn" 2>tempfile
+        6 "\Zb\Z3$THEME_OPTION\Zn" \
+        7 "\Zb\Z1Exit\Zn" 2>tempfile
 
     choice=$(<tempfile)
     case $choice in
-        1) clear;$BASE_DIR/Module/network_config.sh ;;
-        2) clear;$BASE_DIR/Module/firewall_management.sh ;;
-        3) clear;$BASE_DIR/Module/ovs_management.sh ;;
-        4) clear;$BASE_DIR/Module/network_monitoring.sh ;;
-        5) clear;$BASE_DIR/install.sh ;;
-        6) exit_script ;;
+        1) clear; $BASE_DIR/Module/network_config.sh ;;
+        2) clear; $BASE_DIR/Module/firewall_management.sh ;;
+        3) clear; $BASE_DIR/Module/ovs_management.sh ;;
+        4) clear; $BASE_DIR/Module/network_monitoring.sh ;;
+        5) clear; $BASE_DIR/install.sh ;;
+        6) switch_theme ;;  # تغییر تم
+        7) exit_script ;;
         *) echo "Invalid option"; main_menu ;;
     esac
 }
@@ -109,5 +99,4 @@ trap "rm -f tempfile" EXIT
 
 # اجرای توابع برای اولین بار
 make_modules_executable
-welcome_and_choose_theme  # خوش‌آمدگویی و انتخاب تم یکجا
 main_menu  # نمایش منوی اصلی
