@@ -1400,9 +1400,9 @@ run_and_manage_speed_test() {
                     if [[ $save_log -eq 0 ]]; then
                         timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
                         log_file="$log_dir/speedtest_log_$timestamp.txt"
-                        speedtest --progress=no | tee "$result_file" "$log_file"  
+                        speedtest-cli | tee "$result_file" "$log_file"  
                     else
-                        speedtest --progress=no | tee "$result_file"  
+                        speedtest-cli | tee "$result_file"  
                     fi
                 ) | dialog --programbox "Speed Test in Progress..." "$dialog_height" "$dialog_width"
 
