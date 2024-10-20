@@ -1836,7 +1836,7 @@ function network_monitoring() {
             3) bandwidth_reports_submenu ;;
             4) logs_resources_submenu ;;
             5)send_selected_logs_via_telegram ;;
-            6) $BASE_DIR/.././net-tool.sh; exit 0 ;;
+            6) clear;$BASE_DIR/.././net-tool.sh; exit 0 ;;
             *) break ;;
         esac
     done
