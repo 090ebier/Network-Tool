@@ -1071,7 +1071,7 @@ firewall_menu() {
             7) backup_and_restore_rules ;;
             8) save_rules ;;
             9) reset_firewall ;;
-            10) $BASE_DIR/.././net-tool.sh; exit 0 ;;  # Return to main menu and close this script
+            10) clear;$BASE_DIR/.././net-tool.sh; exit 0 ;;  # Return to main menu and close this script
         esac
     done
 }
