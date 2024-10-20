@@ -1041,10 +1041,10 @@ firewall_menu() {
             3 "\Zb\Z2Manage NAT Rules\Zn" \
             4 "\Zb\Z2Manage ICMP Rules\Zn" \
             5 "\Zb\Z2Configure Port Knocking\Zn" \
-            6 "\Zb\Z2Show Firewall Status\Zn" \
-            7 "\Zb\Z2Backup & Restore Rules\Zn" \
-            8 "\Zb\Z2Save Rules Across Reboot\Zn" \
-            9 "\Zb\Z2Reset & Clear Firewall\Zn" \
+            6 "\Zb\Z3Show Firewall Status\Zn" \
+            7 "\Zb\Z3Backup & Restore Rules\Zn" \
+            8 "\Zb\Z3Save Rules Across Reboot\Zn" \
+            9 "\Zb\Z3Reset & Clear Firewall\Zn" \
             10 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $option in
