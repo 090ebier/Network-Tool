@@ -37,7 +37,7 @@ check_and_install() {
     PKG_NAME=$1
     if ! dpkg -s $PKG_NAME >/dev/null 2>&1; then
         echo "$PKG_NAME is not installed. Installing..."
-        sudo  sudo DEBIAN_FRONTEND=noninteractive apt install -y $PKG_NAME || { echo "Failed to install $PKG_NAME."; exit 1; }
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y $PKG_NAME || { echo "Failed to install $PKG_NAME."; exit 1; }
     else
         echo "$PKG_NAME is already installed."
     fi
@@ -50,6 +50,16 @@ check_and_install_pip() {
         pip3 install $PIP_PKG_NAME --break-system-packages || { echo "Failed to install Python package: $PIP_PKG_NAME."; exit 1; }
     else
         echo "$PIP_PKG_NAME is already installed."
+    fi
+}
+
+install_speedtest() {
+    if ! command -v speedtest &> /dev/null; then
+        echo "Speedtest CLI is not installed. Installing..."
+        curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash || { echo "Failed to add speedtest-cli repository."; exit 1; }
+        sudo apt-get install speedtest -y || { echo "Failed to install speedtest."; exit 1; }
+    else
+        echo "Speedtest CLI is already installed."
     fi
 }
 
@@ -68,6 +78,16 @@ install_dependencies() {
     check_and_install ifstat
     check_and_install python3
     check_and_install python3-pip
+
+    # Dependencies for WeasyPrint and other related libraries
+    check_and_install libpango-1.0-0
+    check_and_install libpangoft2-1.0-0
+    check_and_install libcairo2
+    check_and_install libffi-dev
+    check_and_install libssl-dev
+
+    echo "Installing Speedtest CLI..."
+    install_speedtest  # نصب Speedtest CLI
 
     echo "Checking for Python packages..."
 
