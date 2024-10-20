@@ -923,7 +923,7 @@ function monitor_ports_and_traffic() {
                         ;;
 
                     3)
-                        break   مدیریت لاگ‌ها
+                        break
                         ;;
                 esac
             done
