@@ -1045,8 +1045,8 @@ while true; do
         5 "\Zb\Z2Set VLAN IP\Zn" \
         6 "\Zb\Z2Set QoS for Port\Zn" \
         7 "\Zb\Z2Show Traffic Stats\Zn" \
-        8 "\Zb\Z2Backup/Restore OVS Config\Zn" \
-        9 "\Zb\Z2OVS Service Status\Zn" \
+        8 "\Zb\Z3Backup/Restore OVS Config\Zn" \
+        9 "\Zb\Z3OVS Service Status\Zn" \
         10 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
 
     # بررسی لغو عملیات توسط کاربر
