@@ -162,7 +162,7 @@ function manage_ports() {
                 --inputbox "\nEnter port name to add:" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
             
             if [ $? -ne 0 ] || [ -z "$port" ]; then
-                show_msg "\Zb\Z1Port name cannot be empty!\Zn"
+                show_msg "Port name cannot be empty!"
                 manage_ports
                 return
             fi
@@ -184,9 +184,9 @@ function manage_ports() {
             sudo ovs-vsctl add-port $selected_bridge $port
             if [ -n "$vlan" ]; then
                 sudo ovs-vsctl set port $port tag=$vlan
-                show_msg "\Zb\Z3Port $port added to bridge $selected_bridge with VLAN $vlan.\Zn"
+                show_msg "Port $port added to bridge $selected_bridge with VLAN $vlan."
             else
-                show_msg "\Zb\Z3Port $port added to bridge $selected_bridge without VLAN.\Zn"
+                show_msg "Port $port added to bridge $selected_bridge without VLAN."
             fi
             manage_ports  # بازگشت به منوی مدیریت پورت‌ها
             ;;
@@ -235,7 +235,7 @@ function manage_ports() {
             if [ $? -eq 0 ]; then
                 sudo ovs-vsctl del-port $selected_bridge $selected_port
                 sudo ip link delete "$selected_port"  # حذف پورت از سیستم
-                show_msg "\Zb\Z3Port $selected_port deleted from bridge $selected_bridge.\Zn"
+                show_msg "Port $selected_port deleted from bridge $selected_bridge."
             else
                 show_msg "Deletion cancelled."
             fi
@@ -259,7 +259,7 @@ function manage_ports() {
                 # اگر بریج مشخص نشده باشد، همه بریج‌ها و پورت‌ها نمایش داده می‌شوند
                 current_bridges=$(sudo ovs-vsctl list-br)
                 if [ -z "$current_bridges" ]; then
-                    show_msg "\Zb\Z1No bridges currently exist.\Zn"
+                    show_msg "No bridges currently exist."
                     manage_ports
                     return
                 fi
@@ -388,7 +388,7 @@ function toggle_port() {
                 if [ $? -eq 0 ]; then
                     sudo ovs-vsctl set Interface "$port_choice" admin_state=down
                     sudo ip link set "$port_choice" down
-                    show_msg "\Zb\Z3Port $port_choice disabled.\Zn"
+                    show_msg "Port $port_choice disabled."
                 else
                     show_msg "Action canceled."
                 fi
