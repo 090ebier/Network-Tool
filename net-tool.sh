@@ -82,7 +82,8 @@ main_menu() {
         2) clear; $BASE_DIR/Module/firewall_management.sh ;;
         3) clear; $BASE_DIR/Module/ovs_management.sh ;;
         4) clear; $BASE_DIR/Module/network_monitoring.sh ;;
-        5) clear; $BASE_DIR/install.sh ;;
+        5) clear; curl -Ls https://raw.githubusercontent.com/090ebier/Network-Tool/main/install.sh -o /tmp/install.sh
+        sudo bash /tmp/install.sh ;;
         6) switch_theme ;;  # تغییر تم
         7) exit_script ;;
         *) echo "Invalid option"; main_menu ;;
