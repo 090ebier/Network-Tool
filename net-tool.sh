@@ -10,9 +10,10 @@ fi
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 TITLE="Network Management Tool"
 
-# استفاده از متغیرهای محیطی برای مدیریت تم و پیام خوش‌آمدگویی
+# استفاده از متغیرهای محیطی برای مدیریت تم
 if [ -z "$THEME" ]; then
     export THEME="dark"  # تم پیش‌فرض دارک
+    export DIALOGRC="$BASE_DIR/dark_dialogrc"  # تنظیم پیش‌فرض برای دارک تم
 fi
 
 make_modules_executable() {
@@ -38,10 +39,10 @@ determine_network_config() {
 # تابع تغییر تم
 switch_theme() {
     if [ "$THEME" = "dark" ]; then
-        unset DIALOGRC  # تنظیم به تم لایت
+        unset DIALOGRC  # تغییر به تم لایت
         export THEME="light"
     else
-        export DIALOGRC="$BASE_DIR/dark_dialogrc"  # تنظیم به تم دارک
+        export DIALOGRC="$BASE_DIR/dark_dialogrc"  # تغییر به تم دارک
         export THEME="dark"
     fi
     main_menu  # بازگشت به منوی اصلی بعد از تغییر تم
