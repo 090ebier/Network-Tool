@@ -124,12 +124,13 @@ view_connections() {
 
     while true; do
         # انتخاب فیلتر
-        filter=$(dialog --colors --menu "\Zb\Z2Choose Filter for Viewing Connections\Zn" "$dialog_height" "$dialog_width" 5 \
+        filter=$(dialog --colors --menu "\Zb\Z2Choose Filter for Viewing Connections\Zn" "$dialog_height" "$dialog_width" 6 \
             1 "\Zb\Z2View All Active Connections\Zn" \
             2 "\Zb\Z2View Listening Ports\Zn" \
             3 "\Zb\Z2Filter by Port or Protocol\Zn" \
-            4 "\Zb\Z2View Saved Outputs\Zn" \
-            5 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
+            4 "\Zb\Z2View Saved Logs\Zn" \
+            5 "\Zb\Z2Delete Saved Logs\Zn" \
+            6 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $filter in
             1)
@@ -173,7 +174,7 @@ view_connections() {
                         3 "\Zb\Z1Back\Zn" 3>&1 1>&2 2>&3)
 
                     if [ "$protocol" = "3" ]; then
-                        break  # بازگشت به منوی اصلی
+                        break  
                     fi
 
                     # پروتکل پیش‌فرض TCP باشد
@@ -238,7 +239,7 @@ view_connections() {
                 done
 
                 # نمایش لیست فایل‌های بکاپ به کاربر برای انتخاب
-                selected_backup=$(dialog --colors --menu "\Zb\Z2Select a file to view\Zn" "$dialog_height" "$dialog_width" 10 "${file_list[@]}" 3>&1 1>&2 2>&3)
+                selected_backup=$(dialog --menu "Select a file to view:" "$dialog_height" "$dialog_width" 10 "${file_list[@]}" 3>&1 1>&2 2>&3)
 
                 # بررسی اینکه کاربر فایلی انتخاب کرده یا خیر
                 if [ $? -ne 0 ] || [ -z "$selected_backup" ]; then
@@ -252,13 +253,44 @@ view_connections() {
                 # نمایش محتوای فایل انتخاب‌شده
                 if [ -f "$selected_backup_full_path" ]; then
                     dialog --colors --backtitle "\Zb\Z4Saved Output\Zn" --textbox "$selected_backup_full_path" 30 100
-                    view_connections
                 else
                     dialog --msgbox "Error: File not found or cannot be opened." 7 40
-                    view_connections
                 fi
                 ;;
             5)
+                # بررسی اینکه آیا فایل‌هایی برای حذف وجود دارند یا خیر
+                log_files=("$backup_dir"/*.txt)
+                if [ ! -f "${log_files[0]}" ]; then
+                    dialog --msgbox "No backup files found in $backup_dir!" 7 40
+                    continue  
+                fi
+
+                # اجازه به کاربر برای انتخاب چندین فایل لاگ برای حذف
+                file_list=()
+                index=1
+                for file in "${log_files[@]}"; do
+                    file_list+=("$index" "$(basename "$file")" "OFF")
+                    index=$((index + 1))
+                done
+
+                selected_files=$(dialog --stdout --checklist "Choose log files to delete:" 15 50 10 "${file_list[@]}")
+
+                if [[ -z "$selected_files" ]]; then
+                    dialog --msgbox "No file selected!" 7 40
+                    continue  
+                fi
+
+                # تبدیل ایندکس‌های انتخابی به نام فایل‌ها و حذف آن‌ها
+                for i in $selected_files; do
+                    log_file="${log_files[$((i - 1))]}"
+                    rm -f "$log_file"
+                done
+
+                dialog --colors --msgbox "\Zb\Z2Selected log files have been deleted.\Zn" 5 40
+                ;;
+
+
+            6)
                 clear
                 device_monitoring_submenu
                 break
@@ -266,6 +298,7 @@ view_connections() {
         esac
     done
 }
+
 
 # Function to monitor and manage DNS-related tasks
 function monitor_dns() {
@@ -282,7 +315,7 @@ function monitor_dns() {
             2 "\Zb\Z2Test DNS Performance\Zn" \
             3 "\Zb\Z2Clear DNS Cache\Zn" \
             4 "\Zb\Z2View DNS Cache\Zn" \
-            5 "\Zb\Z2View Saved DNS Logs\Zn" \
+            5 "\Zb\Z2DNS Log Management\Zn" \
             6 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $action in
@@ -303,7 +336,7 @@ function monitor_dns() {
                 
                 clear
                 log_file="$backup_dir/dns_log_$(date +'%Y-%m-%d_%H-%M-%S').txt"
-                echo "Monitoring DNS Queries on $interface (Press Ctrl+C to stop)..."
+                echo "Monitoring DNS Queries on $interface (Press Ctrl+C to stop)..." 
 
                 # مانیتورینگ زنده درخواست‌های DNS
                 sudo tcpdump -i "$interface" -l -n port 53 | awk 'BEGIN {print "| Timestamp        | Source IP       | Query Type | Query\n"} \
@@ -369,20 +402,66 @@ function monitor_dns() {
                 ;;
 
             5)
-                # نمایش لاگ‌های ذخیره‌شده
-                saved_logs=$(ls "$backup_dir"/*.txt 2>/dev/null)
-                if [ -z "$saved_logs" ]; then
-                    dialog --colors --msgbox "\Zb\Z2No saved DNS logs found.\Zn" 10 40
-                else
-                    log_list=()
-                    for file in $saved_logs; do
-                        log_list+=("$(basename "$file")" "")
-                    done
-                    selected_log=$(dialog --colors --menu "\Zb\Z2Select a DNS log to view\Zn" "$dialog_height" "$dialog_width" 10 "${log_list[@]}" 3>&1 1>&2 2>&3)
-                    if [ -n "$selected_log" ]; then
-                        dialog --colors --textbox "$backup_dir/$selected_log" "$dialog_height" "$dialog_width"
-                    fi
-                fi
+                while true; do
+                    # زیر منوی مدیریت لاگ DNS
+                    log_action=$(dialog --colors --menu "\Zb\Z2DNS Log Management\Zn" "$dialog_height" "$dialog_width" 3 \
+                        1 "\Zb\Z2View Saved DNS Logs\Zn" \
+                        2 "\Zb\Z2Delete DNS Logs\Zn" \
+                        3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
+
+                    case $log_action in
+                        1)  
+                            # نمایش لاگ‌های ذخیره‌شده
+                            saved_logs=$(ls "$backup_dir"/*.txt 2>/dev/null)
+                            if [ -z "$saved_logs" ]; then
+                                dialog --colors --msgbox "\Zb\Z2No saved DNS logs found.\Zn" 10 40
+                            else
+                                log_list=()
+                                for file in $saved_logs; do
+                                    log_list+=("$(basename "$file")" "")
+                                done
+                                selected_log=$(dialog --colors --menu "\Zb\Z2Select a DNS log to view\Zn" "$dialog_height" "$dialog_width" 10 "${log_list[@]}" 3>&1 1>&2 2>&3)
+                                if [ -n "$selected_log" ]; then
+                                    dialog --colors --textbox "$backup_dir/$selected_log" "$dialog_height" "$dialog_width"
+                                fi
+                            fi
+                            ;;
+
+                        2)  
+                            # اجازه به کاربر برای انتخاب چندین فایل لاگ برای حذف
+                            log_files=("$backup_dir"/*.txt)
+                            if [ ! -f "${log_files[0]}" ]; then
+                                dialog --msgbox "No saved DNS logs found." 7 40
+                                continue  # بازگشت به منوی لاگ
+                            fi
+
+                            file_list=()
+                            index=1
+                            for file in "${log_files[@]}"; do
+                                file_list+=("$index" "$(basename "$file")" "OFF")
+                                index=$((index + 1))
+                            done
+
+                            selected_files=$(dialog --stdout --checklist "Choose DNS log files to delete:" 15 50 10 "${file_list[@]}")
+
+                            if [[ -z "$selected_files" ]]; then
+                                continue  # بازگشت به منوی لاگ
+                            fi
+
+                            # تبدیل ایندکس‌های انتخابی به نام فایل‌ها و حذف آن‌ها
+                            for i in $selected_files; do
+                                log_file="${log_files[$((i - 1))]}"
+                                rm -f "$log_file"
+                            done
+
+                            dialog --colors --msgbox "\Zb\Z2Selected DNS log files have been deleted.\Zn" 5 40
+                            ;;
+
+                        3)  
+                            break  # برگشت به منوی اصلی DNS
+                            ;;
+                    esac
+                done
                 ;;
 
             6)
@@ -403,116 +482,297 @@ function monitor_dns() {
 function view_port_table() {
     get_terminal_size  # تنظیم ابعاد ترمینال
 
-    # انتخاب پروتکل با استفاده از منو و رنگ‌بندی
-    protocol=$(dialog --colors --menu "\Zb\Z2Choose protocol type\Zn" "$dialog_height" "$dialog_width" 2 \
-        1 "\Zb\Z2TCP\Zn" \
-        2 "\Zb\Z2UDP\Zn" 3>&1 1>&2 2>&3)
-    
-    # اگر کاربر کنسل کند یا ورودی نامعتبر باشد
-    if [[ -z "$protocol" ]]; then
-        dialog --colors --msgbox "\Zb\Z1Error: No valid protocol selected.\Zn" 5 40
-        port_traffic_monitoring_submenu
-        return
-    fi
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Port_Table"
+    mkdir -p "$log_dir"  # ایجاد دایرکتوری لاگ‌ها اگر وجود ندارد
 
-    # تبدیل انتخاب به رشته (tcp یا udp)
-    if [[ "$protocol" == "1" ]]; then
-        protocol="tcp"
-    elif [[ "$protocol" == "2" ]]; then
-        protocol="udp"
-    fi
+    while true; do
+        # نمایش منوی اصلی
+        action=$(dialog --colors --menu "\Zb\Z2Port Table Options\Zn" "$dialog_height" "$dialog_width" 4 \
+            1 "\Zb\Z2View Port Table\Zn" \
+            2 "\Zb\Z2Manage Port Logs\Zn" \
+            3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
-    # سوال از کاربر برای نمایش فقط پورت‌های Listening
-    dialog --colors --yesno "\Zb\Z2Do you want only listening ports?\Zn" 7 40
-    response=$?
+        case $action in
+            1)
+                # انتخاب پروتکل با استفاده از منو و رنگ‌بندی
+                protocol=$(dialog --colors --menu "\Zb\Z2Choose protocol type\Zn" "$dialog_height" "$dialog_width" 2 \
+                    1 "\Zb\Z2TCP\Zn" \
+                    2 "\Zb\Z2UDP\Zn" 3>&1 1>&2 2>&3)
 
-    # تنظیم فلگ listening بر اساس انتخاب کاربر
-    if [[ $response -eq 0 ]]; then
-        listening_flag="-l"
-    else
-        listening_flag=""
-    fi
+                # اگر کاربر کنسل کند یا ورودی نامعتبر باشد
+                if [[ -z "$protocol" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1Error: No valid protocol selected.\Zn" 5 40
+                    continue
+                fi
 
-    # نمایش پیام قبل از نشان دادن نتیجه
-    dialog --infobox "Displaying open ports for protocol $protocol..." 5 50
-    sleep 2
+                # تبدیل انتخاب به رشته (tcp یا udp)
+                if [[ "$protocol" == "1" ]]; then
+                    protocol="tcp"
+                elif [[ "$protocol" == "2" ]]; then
+                    protocol="udp"
+                fi
 
-    # دریافت جدول پورت‌ها با استفاده از ss
-    result=$(sudo ss -tuln | grep "$protocol" | awk '{print $1, $4, $5, $6}')
+                # سوال از کاربر برای نمایش فقط پورت‌های Listening
+                dialog --colors --yesno "\Zb\Z2Do you want only listening ports?\Zn" 7 40
+                response=$?
 
-    # اگر نتیجه خالی بود، نمایش پیام خطا
-    if [[ -z "$result" ]]; then
-        dialog --colors --msgbox "\Zb\Z1No open ports found for protocol $protocol.\Zn" 5 50
-        port_traffic_monitoring_submenu
-    else
-        # نمایش نتیجه در یک باکس اسکرولی
-        dialog --colors --msgbox "\Zb\Z2Open Ports for $protocol:\n\Zn$result" "$dialog_height" "$dialog_width"
-        port_traffic_monitoring_submenu
-    fi
+                # تنظیم فلگ listening بر اساس انتخاب کاربر
+                if [[ $response -eq 0 ]]; then
+                    listening_flag="-l"
+                else
+                    listening_flag=""
+                fi
+
+                # نمایش پیام قبل از نشان دادن نتیجه
+                dialog --infobox "Displaying open ports for protocol $protocol..." 5 50
+                sleep 2
+
+                # دریافت جدول پورت‌ها با استفاده از ss
+                result=$(sudo ss -tuln | grep "$protocol" | awk '{print $1, $4, $5, $6}')
+
+                # اگر نتیجه خالی بود، نمایش پیام خطا
+                if [[ -z "$result" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1No open ports found for protocol $protocol.\Zn" 5 50
+                    continue
+                else
+                    # نمایش نتیجه در یک باکس اسکرولی
+                    dialog --colors --msgbox "\Zb\Z2Open Ports for $protocol:\n\Zn$result" "$dialog_height" "$dialog_width"
+
+                    # پرسش برای ذخیره لاگ‌ها
+                    dialog --yesno "Do you want to save the port table log?" 7 40
+                    if [ $? -eq 0 ]; then
+                        timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+                        filename="port_table_$protocol_$timestamp.txt"
+                        echo "$result" > "$log_dir/$filename"
+                        dialog --msgbox "Log saved to $log_dir/$filename" 7 50
+                    fi
+                fi
+                ;;
+
+            2)
+                # زیر منوی مدیریت لاگ‌ها (نمایش و حذف لاگ‌ها)
+                while true; do
+                    log_action=$(dialog --colors --menu "\Zb\Z2Manage Port Logs\Zn" "$dialog_height" "$dialog_width" 3 \
+                        1 "\Zb\Z2View Port Logs\Zn" \
+                        2 "\Zb\Z2Delete Port Logs\Zn" \
+                        3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
+
+                    case $log_action in
+                        1)  
+                            # نمایش لاگ‌های ذخیره‌شده
+                            saved_logs=$(ls "$log_dir"/*.txt 2>/dev/null)
+                            if [ -z "$saved_logs" ]; then
+                                dialog --colors --msgbox "\Zb\Z2No saved port logs found.\Zn" 10 40
+                            else
+                                log_list=()
+                                for file in $saved_logs; do
+                                    log_list+=("$(basename "$file")" "")
+                                done
+                                selected_log=$(dialog --colors --menu "\Zb\Z2Select a port log to view\Zn" "$dialog_height" "$dialog_width" 10 "${log_list[@]}" 3>&1 1>&2 2>&3)
+                                if [ -n "$selected_log" ]; then
+                                    dialog --colors --textbox "$log_dir/$selected_log" "$dialog_height" "$dialog_width"
+                                fi
+                            fi
+                            ;;
+
+                        2)  
+                            # حذف لاگ‌ها
+                            log_files=("$log_dir"/*.txt)
+                            if [ ! -f "${log_files[0]}" ]; then
+                                dialog --msgbox "No saved port logs found." 7 40
+                                continue  # بازگشت به منوی لاگ
+                            fi
+
+                            # ایجاد لیست فایل‌ها برای انتخاب
+                            file_list=()
+                            index=1
+                            for file in "${log_files[@]}"; do
+                                file_list+=("$index" "$(basename "$file")" "OFF")
+                                index=$((index + 1))
+                            done
+
+                            selected_files=$(dialog --stdout --checklist "Choose port log files to delete:" 15 50 10 "${file_list[@]}")
+
+                            if [[ -z "$selected_files" ]]; then
+                                continue  # بازگشت به منوی لاگ
+                            fi
+
+                            # تبدیل ایندکس‌های انتخابی به نام فایل‌ها و حذف آن‌ها
+                            for i in $selected_files; do
+                                log_file="${log_files[$((i - 1))]}"
+                                rm -f "$log_file"
+                            done
+
+                            dialog --colors --msgbox "\Zb\Z2Selected port log files have been deleted.\Zn" 5 40
+                            ;;
+
+                        3)  
+                            break  
+                            ;;
+                    esac
+                done
+                ;;
+
+            3)
+                # بازگشت به منوی قبلی
+                port_traffic_monitoring_submenu
+                break
+                ;;
+        esac
+    done
 }
 
 
 function check_specific_port() {
     get_terminal_size  # تنظیم ابعاد ترمینال
 
-    # دریافت شماره پورت از کاربر با استفاده از dialog
-    port=$(dialog --colors --inputbox "\Zb\Z2Enter the port number to check:\Zn" 8 40 3>&1 1>&2 2>&3)
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Port_Check"
+    mkdir -p "$log_dir"  # ایجاد دایرکتوری لاگ‌ها اگر وجود ندارد
 
-    # بررسی معتبر بودن شماره پورت (فقط اعداد)
-    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
-        dialog --colors --msgbox "\Zb\Z1Error: Please enter a valid numeric port number.\Zn" 5 40
-        port_traffic_monitoring_submenu
-        return
-    fi
+    while true; do
+        # نمایش منوی اصلی
+        action=$(dialog --colors --menu "\Zb\Z2Port Check Options\Zn" "$dialog_height" "$dialog_width" 4 \
+            1 "\Zb\Z2Check Specific Port\Zn" \
+            2 "\Zb\Z2Manage Port Check Logs\Zn" \
+            3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
-    # انتخاب پروتکل با استفاده از dialog و رنگ‌بندی
-    protocol=$(dialog --colors --menu "\Zb\Z2Choose protocol type\Zn" "$dialog_height" "$dialog_width" 2 \
-        1 "\Zb\Z2TCP\Zn" \
-        2 "\Zb\Z2UDP\Zn" 3>&1 1>&2 2>&3)
-    
-    # اگر کاربر کنسل کند یا ورودی نامعتبر باشد
-    if [[ -z "$protocol" ]]; then
-        dialog --colors --msgbox "\Zb\Z1Error: No valid protocol selected.\Zn" 5 40
-        port_traffic_monitoring_submenu
-        return
-    fi
+        case $action in
+            1)
+                # دریافت شماره پورت از کاربر با استفاده از dialog
+                port=$(dialog --colors --inputbox "\Zb\Z2Enter the port number to check:\Zn" 8 40 3>&1 1>&2 2>&3)
 
-    # تبدیل انتخاب به رشته (tcp یا udp)
-    if [[ "$protocol" == "1" ]]; then
-        protocol="tcp"
-    elif [[ "$protocol" == "2" ]]; then
-        protocol="udp"
-    fi
+                # بررسی معتبر بودن شماره پورت (فقط اعداد)
+                if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+                    dialog --colors --msgbox "\Zb\Z1Error: Please enter a valid numeric port number.\Zn" 5 40
+                    continue
+                fi
 
-    # نمایش پیام قبل از بررسی پورت
-    dialog --infobox "Checking if port $port is in use for protocol $protocol..." 5 50
-    sleep 2
+                # انتخاب پروتکل با استفاده از dialog و رنگ‌بندی
+                protocol=$(dialog --colors --menu "\Zb\Z2Choose protocol type\Zn" "$dialog_height" "$dialog_width" 2 \
+                    1 "\Zb\Z2TCP\Zn" \
+                    2 "\Zb\Z2UDP\Zn" 3>&1 1>&2 2>&3)
 
-    # بررسی استفاده از پورت با استفاده از ss
-    result=$(sudo ss -tuln | grep ":$port " | grep "$protocol")
+                # اگر کاربر کنسل کند یا ورودی نامعتبر باشد
+                if [[ -z "$protocol" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1Error: No valid protocol selected.\Zn" 5 40
+                    continue
+                fi
 
-    # اگر نتیجه خالی بود، پورت در استفاده نیست
-    if [[ -z "$result" ]]; then
-        dialog --colors --msgbox "\Zb\Z1Port $port is not in use for protocol $protocol.\Zn" 5 50
-        port_traffic_monitoring_submenu
-    else
-        # نمایش جزئیات پورت مورد استفاده
-        dialog --colors --msgbox "\Zb\Z2Port $port is in use:\Zn\n\n$result" "$dialog_height" "$dialog_width"
+                # تبدیل انتخاب به رشته (tcp یا udp)
+                if [[ "$protocol" == "1" ]]; then
+                    protocol="tcp"
+                elif [[ "$protocol" == "2" ]]; then
+                    protocol="udp"
+                fi
 
-        # بررسی برای سرویس یا فرآیند با استفاده از lsof
-        service_info=$(sudo lsof -i :$port)
+                # نمایش پیام قبل از بررسی پورت
+                dialog --infobox "Checking if port $port is in use for protocol $protocol..." 5 50
+                sleep 2
 
-        if [[ -z "$service_info" ]]; then
-            dialog --colors --msgbox "\Zb\Z1No specific service found using port $port.\Zn" 5 50
-            port_traffic_monitoring_submenu
-        else
-            # نمایش اطلاعات سرویس
-            dialog --colors --msgbox "\Zb\Z2Service information for port $port:\Zn\n\n$service_info" "$dialog_height" "$dialog_width"
-            port_traffic_monitoring_submenu
-        fi
-    fi
+                # بررسی استفاده از پورت با استفاده از ss
+                result=$(sudo ss -tuln | grep ":$port " | grep "$protocol")
+
+                # اگر نتیجه خالی بود، پورت در استفاده نیست
+                if [[ -z "$result" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1Port $port is not in use for protocol $protocol.\Zn" 5 50
+                    continue
+                else
+                    # نمایش جزئیات پورت مورد استفاده
+                    dialog --colors --msgbox "\Zb\Z2Port $port is in use:\Zn\n\n$result" "$dialog_height" "$dialog_width"
+
+                    # بررسی برای سرویس یا فرآیند با استفاده از lsof
+                    service_info=$(sudo lsof -i :$port)
+
+                    if [[ -z "$service_info" ]]; then
+                        dialog --colors --msgbox "\Zb\Z1No specific service found using port $port.\Zn" 5 50
+                    else
+                        # نمایش اطلاعات سرویس
+                        dialog --colors --msgbox "\Zb\Z2Service information for port $port:\Zn\n\n$service_info" "$dialog_height" "$dialog_width"
+                    fi
+
+                    # پرسش برای ذخیره لاگ‌ها
+                    dialog --yesno "Do you want to save the port check log?" 7 40
+                    if [ $? -eq 0 ]; then
+                        timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+                        filename="port_check_${protocol}_${port}_$timestamp.txt"
+                        echo -e "Port $port is in use for protocol $protocol:\n\n$result\n\nService Information:\n$service_info" > "$log_dir/$filename"
+                        dialog --msgbox "Log saved to $log_dir/$filename" 7 50
+                    fi
+                fi
+                ;;
+
+            2)
+                # زیر منوی مدیریت لاگ‌ها (نمایش و حذف لاگ‌ها)
+                while true; do
+                    log_action=$(dialog --colors --menu "\Zb\Z2Manage Port Check Logs\Zn" "$dialog_height" "$dialog_width" 3 \
+                        1 "\Zb\Z2View Port Check Logs\Zn" \
+                        2 "\Zb\Z2Delete Port Check Logs\Zn" \
+                        3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
+
+                    case $log_action in
+                        1)  
+                            # نمایش لاگ‌های ذخیره‌شده
+                            saved_logs=$(ls "$log_dir"/*.txt 2>/dev/null)
+                            if [ -z "$saved_logs" ]; then
+                                dialog --colors --msgbox "\Zb\Z2No saved port check logs found.\Zn" 10 40
+                            else
+                                log_list=()
+                                for file in $saved_logs; do
+                                    log_list+=("$(basename "$file")" "")
+                                done
+                                selected_log=$(dialog --colors --menu "\Zb\Z2Select a port check log to view\Zn" "$dialog_height" "$dialog_width" 10 "${log_list[@]}" 3>&1 1>&2 2>&3)
+                                if [ -n "$selected_log" ]; then
+                                    dialog --colors --textbox "$log_dir/$selected_log" "$dialog_height" "$dialog_width"
+                                fi
+                            fi
+                            ;;
+
+                        2)  
+                            # حذف لاگ‌ها
+                            log_files=("$log_dir"/*.txt)
+                            if [ ! -f "${log_files[0]}" ]; then
+                                dialog --msgbox "No saved port check logs found." 7 40
+                                continue  # بازگشت به منوی لاگ
+                            fi
+
+                            # ایجاد لیست فایل‌ها برای انتخاب
+                            file_list=()
+                            index=1
+                            for file in "${log_files[@]}"; do
+                                file_list+=("$index" "$(basename "$file")" "OFF")
+                                index=$((index + 1))
+                            done
+
+                            selected_files=$(dialog --stdout --checklist "Choose port check log files to delete:" 15 50 10 "${file_list[@]}")
+
+                            if [[ -z "$selected_files" ]]; then
+                                continue  # بازگشت به منوی لاگ
+                            fi
+
+                            # تبدیل ایندکس‌های انتخابی به نام فایل‌ها و حذف آن‌ها
+                            for i in $selected_files; do
+                                log_file="${log_files[$((i - 1))]}"
+                                rm -f "$log_file"
+                            done
+
+                            dialog --colors --msgbox "\Zb\Z2Selected port check log files have been deleted.\Zn" 5 40
+                            ;;
+
+                        3)  
+                            break  
+                            ;;
+                    esac
+                done
+                ;;
+
+            3)
+                # بازگشت به منوی قبلی
+                port_traffic_monitoring_submenu
+                break
+                ;;
+        esac
+    done
 }
-
 
 function monitor_ports_and_traffic() {
     get_terminal_size  # تنظیم ابعاد ترمینال
@@ -529,132 +789,154 @@ function monitor_ports_and_traffic() {
         # نمایش منو با گزینه‌های مختلف برای مانیتورینگ
         choice=$(dialog --colors --menu "\Zb\Z2Network Monitor Menu\Zn" "$dialog_height" "$dialog_width" 4 \
             1 "\Zb\Z2Monitor Ports and Traffic\Zn" \
-            2 "\Zb\Z2Display Logs\Zn" \
-            3 "\Zb\Z2Delete Logs\Zn" \
-            4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
+            2 "\Zb\Z2Manage Logs\Zn" \
+            3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $choice in
-            1)
-                # مانیتورینگ پورت‌ها و ترافیک
-                mode=$(dialog --colors --menu "\Zb\Z2Choose monitoring mode\Zn" "$dialog_height" "$dialog_width" 2 \
-                    1 "\Zb\Z2Monitor all traffic\Zn" \
-                    2 "\Zb\Z2Monitor specific port\Zn" 3>&1 1>&2 2>&3)
+        1)
+            # مانیتورینگ پورت‌ها و ترافیک
+            mode=$(dialog --colors --menu "\Zb\Z2Choose monitoring mode\Zn" "$dialog_height" "$dialog_width" 3 \
+                1 "\Zb\Z2Monitor all traffic\Zn" \
+                2 "\Zb\Z2Monitor specific port\Zn" \
+                3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
-                if [[ -z "$mode" ]]; then
-                    dialog --colors --msgbox "\Zb\Z1Error: No valid option selected.\Zn" 5 40
+            if [[ -z "$mode" ]]; then
+                dialog --colors --msgbox "\Zb\Z1Error: No valid option selected.\Zn" 5 40
+                continue
+            fi
+
+            if [[ "$mode" == "3" ]]; then
+                continue  
+            fi
+
+            tcpdump_cmd="sudo tcpdump -n -q"
+
+            if [[ "$mode" == "2" ]]; then
+                port=$(dialog --colors --inputbox "\Zb\Z2Enter the port number to monitor:\Zn" 8 40 3>&1 1>&2 2>&3)
+
+                if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+                    dialog --colors --msgbox "\Zb\Z1Error: Please enter a valid numeric port number.\Zn" 5 40
                     continue
                 fi
 
-                tcpdump_cmd="sudo tcpdump -n -q"
+                tcpdump_cmd="$tcpdump_cmd port $port"
+            fi
 
-                if [[ "$mode" == "2" ]]; then
-                    port=$(dialog --colors --inputbox "\Zb\Z2Enter the port number to monitor:\Zn" 8 40 3>&1 1>&2 2>&3)
+            dialog --yesno "Do you want to save the output to a log file?" 7 40
+            save_log=$?
 
-                    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
-                        dialog --colors --msgbox "\Zb\Z1Error: Please enter a valid numeric port number.\Zn" 5 40
-                        continue
-                    fi
+            if [[ $save_log -eq 0 ]]; then
+                log_file=$(dialog --colors --inputbox "\Zb\Z2Enter the log file name (without extension):\Zn" 8 40 3>&1 1>&2 2>&3)
 
-                    tcpdump_cmd="$tcpdump_cmd port $port"
-                fi
-
-                dialog --yesno "Do you want to save the output to a log file?" 7 40
-                save_log=$?
-
-                if [[ $save_log -eq 0 ]]; then
-                    log_file=$(dialog --colors --inputbox "\Zb\Z2Enter the log file name (without extension):\Zn" 8 40 3>&1 1>&2 2>&3)
-
-                    if [[ -z "$log_file" ]]; then
-                        dialog --colors --msgbox "\Zb\Z1Error: Log file name cannot be empty.\Zn" 5 40
-                        continue
-                    fi
-
-                    # ذخیره لاگ به عنوان یک فایل متنی
-                    log_file="$log_dir/$log_file.txt"
-                    tcpdump_cmd="$tcpdump_cmd -nn -q -tttt | tee $log_file"
-                    dialog --colors --msgbox "\Zb\Z2Monitoring traffic and saving to $log_file. Press Ctrl+C to stop.\Zn" 7 50
-                else
-                    dialog --colors --msgbox "\Zb\Z2Monitoring traffic in real-time. Press Ctrl+C to stop.\Zn" 7 50
-                fi
-
-                clear
-                eval $tcpdump_cmd
-                ;;
-
-            2)
-                # نمایش لاگ‌ها
-                log_files=$(ls -1 "$log_dir"/*.txt 2>/dev/null)
-
-                if [[ -z "$log_files" ]]; then
-                    dialog --colors --msgbox "\Zb\Z1No logs found.\Zn" 5 40
+                if [[ -z "$log_file" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1Error: Log file name cannot be empty.\Zn" 5 40
                     continue
                 fi
 
-                # ساخت لیست فایل‌ها برای نمایش در منو
-                file_list=()
-                index=1
+                # ذخیره لاگ به عنوان یک فایل متنی
+                log_file="$log_dir/$log_file.txt"
+                tcpdump_cmd="$tcpdump_cmd -nn -q -tttt | tee $log_file"
+                dialog --colors --msgbox "\Zb\Z2Monitoring traffic and saving to $log_file. Press Ctrl+C to stop.\Zn" 7 50
+            else
+                dialog --colors --msgbox "\Zb\Z2Monitoring traffic in real-time. Press Ctrl+C to stop.\Zn" 7 50
+            fi
 
-                for log_file_path in "$log_dir"/*.txt; do
-                    file_name=$(basename "$log_file_path")
-                    file_map["$file_name"]="$log_file_path"  # مپ کردن نام فایل به مسیر کامل
-                    file_list+=("$index" "$file_name")
-                    index=$((index + 1))
-                done
+            clear
+            eval $tcpdump_cmd
+            ;;
 
-                # نمایش منوی لاگ‌ها برای انتخاب
-                log_choice=$(dialog --colors --menu "\Zb\Z2Choose a log to display\Zn" 15 60 10 "${file_list[@]}" 3>&1 1>&2 2>&3)
 
-                if [[ -n "$log_choice" ]]; then
-                    selected_file_name="${file_list[$((log_choice * 2 - 1))]}"  # دریافت نام فایل انتخابی
-                    selected_file_path="${file_map[$selected_file_name]}"  # دریافت مسیر کامل فایل
-                    dialog --textbox "$selected_file_path" 20 80
-                fi
-                ;;
+        2)
+            # زیر منوی مدیریت لاگ‌ها
+            while true; do
+                log_action=$(dialog --colors --menu "\Zb\Z2Manage Logs\Zn" "$dialog_height" "$dialog_width" 3 \
+                    1 "\Zb\Z2Display Logs\Zn" \
+                    2 "\Zb\Z2Delete Logs\Zn" \
+                    3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
-            3)
-                # حذف لاگ‌ها
-                log_files=$(ls -1 "$log_dir"/*.txt 2>/dev/null)
+                case $log_action in
+                    1)
+                        # نمایش لاگ‌ها (همانطور که در نسخه قبلی بود)
+                        log_files=$(ls -1 "$log_dir"/*.txt 2>/dev/null)
 
-                if [[ -z "$log_files" ]]; then
-                    dialog --colors --msgbox "\Zb\Z1No logs found.\Zn" 5 40
-                    continue
-                fi
+                        if [[ -z "$log_files" ]]; then
+                            dialog --colors --msgbox "\Zb\Z1No logs found.\Zn" 5 40
+                            continue
+                        fi
 
-                # ساخت لیست فایل‌ها برای حذف
-                file_list=()
-                index=1
+                        # ساخت لیست فایل‌ها برای نمایش در منو
+                        file_list=()
+                        index=1
 
-                for log_file_path in "$log_dir"/*.txt; do
-                    file_name=$(basename "$log_file_path")
-                    file_map["$file_name"]="$log_file_path"  # مپ کردن نام فایل به مسیر کامل
-                    file_list+=("$index" "$file_name")
-                    index=$((index + 1))
-                done
+                        for log_file_path in "$log_dir"/*.txt; do
+                            file_name=$(basename "$log_file_path")
+                            file_map["$file_name"]="$log_file_path"  # مپ کردن نام فایل به مسیر کامل
+                            file_list+=("$index" "$file_name")
+                            index=$((index + 1))
+                        done
 
-                # نمایش لیست لاگ‌ها برای حذف
-                log_choice=$(dialog --colors --menu "\Zb\Z2Choose a log to delete\Zn" 15 60 10 "${file_list[@]}" 3>&1 1>&2 2>&3)
+                        # نمایش منوی لاگ‌ها برای انتخاب
+                        log_choice=$(dialog --colors --menu "\Zb\Z2Choose a log to display\Zn" 15 60 10 "${file_list[@]}" 3>&1 1>&2 2>&3)
 
-                if [[ -n "$log_choice" ]]; then
-                    selected_file_name="${file_list[$((log_choice * 2 - 1))]}"  # دریافت نام فایل انتخابی
-                    selected_file_path="${file_map[$selected_file_name]}"  # دریافت مسیر کامل فایل
+                        if [[ -n "$log_choice" ]]; then
+                            selected_file_name="${file_list[$((log_choice * 2 - 1))]}"  # دریافت نام فایل انتخابی
+                            selected_file_path="${file_map[$selected_file_name]}"  # دریافت مسیر کامل فایل
+                            dialog --textbox "$selected_file_path" 20 80
+                        fi
+                        ;;
 
-                    dialog --yesno "Are you sure you want to delete $selected_file_name?" 7 40
-                    delete_confirmation=$?
+                    2)
+                        # حذف لاگ‌ها با چک‌باکس
+                        log_files=$(ls -1 "$log_dir"/*.txt 2>/dev/null)
 
-                    if [[ $delete_confirmation -eq 0 ]]; then
-                        rm -f "$selected_file_path"
-                        dialog --colors --msgbox "\Zb\Z2Log $selected_file_name has been deleted.\Zn" 5 40
-                    fi
-                fi
-                ;;
+                        if [[ -z "$log_files" ]]; then
+                            dialog --colors --msgbox "\Zb\Z1No logs found.\Zn" 5 40
+                            continue
+                        fi
 
-            4)
-                break
-                ;;
+                        # ساخت لیست فایل‌ها برای چک‌باکس
+                        file_list=()
+                        index=1
 
-            *)
-                dialog --colors --msgbox "\Zb\Z1Invalid option. Please try again.\Zn" 5 40
-                ;;
+                        for log_file_path in "$log_dir"/*.txt; do
+                            file_name=$(basename "$log_file_path")
+                            file_map["$file_name"]="$log_file_path"  # مپ کردن نام فایل به مسیر کامل
+                            file_list+=("$index" "$file_name" "OFF")  # "OFF" برای غیرفعال کردن چک‌باکس پیش‌فرض
+                            index=$((index + 1))
+                        done
+
+                        # نمایش چک‌باکس برای انتخاب فایل‌های لاگ
+                        selected_files=$(dialog --checklist "Choose logs to delete:" 15 60 10 "${file_list[@]}" 3>&1 1>&2 2>&3)
+
+                        if [[ -z "$selected_files" ]]; then
+                            dialog --colors --msgbox "No logs selected for deletion." 5 40
+                            continue  # بازگشت به منوی لاگ
+                        fi
+
+                        # تبدیل ایندکس‌های انتخابی به نام فایل‌ها و حذف آن‌ها
+                        for i in $selected_files; do
+                            log_file="${file_map[${file_list[$((i * 3 - 2))]}]}"  # حذف فایل انتخاب‌شده
+                            rm -f "$log_file"
+                        done
+
+                        dialog --colors --msgbox "\Zb\Z2Selected log files have been deleted.\Zn" 5 40
+                        ;;
+
+                    3)
+                        break   مدیریت لاگ‌ها
+                        ;;
+                esac
+            done
+            ;;
+
+        3)
+            clear
+            break  # بازگشت به منوی قبلی
+            ;;
+
+        *)
+            dialog --colors --msgbox "\Zb\Z1Invalid option. Please try again.\Zn" 5 40
+            ;;
         esac
     done
 
@@ -662,8 +944,8 @@ function monitor_ports_and_traffic() {
     clear
 }
 
-
 #################################################################
+
 function monitor_bandwidth() {
     get_terminal_size  # دریافت ابعاد ترمینال برای تنظیم بهتر نمایش
 
@@ -767,12 +1049,10 @@ function monitor_bandwidth() {
         return
     fi
 
-    bandwidth_reports_submenu  # بازگشت به منوی گزارش پهنای باند بعد از عملیات موفق
+    bandwidth_reports_submenu  
 }
 
-
-
-generate_bandwidth_graph() {
+function generate_bandwidth_graph() {
     get_terminal_size  # فراخوانی تابع برای دریافت اندازه ترمینال
     log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Bandwidth"
     
@@ -809,11 +1089,12 @@ generate_bandwidth_graph() {
     # دریافت فایل لاگ انتخاب‌شده
     log_file="${log_files[$((selected_index - 1))]}"
 
-    # انتخاب عملیات: نمایش لاگ یا تولید نمودار
-    action=$(dialog --colors --menu "\Zb\Z2Choose an action:\Zn" "$dialog_height" "$dialog_width" 3 \
+    # انتخاب عملیات: نمایش لاگ، تولید نمودار یا حذف لاگ
+    action=$(dialog --colors --menu "\Zb\Z2Choose an action:\Zn" "$dialog_height" "$dialog_width" 4 \
         1 "\Zb\Z2Display Log (No Graph)\Zn" \
         2 "\Zb\Z2Generate Graph\Zn" \
-        3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
+        3 "\Zb\Z2Delete Log\Zn" \
+        4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
     if [[ -z "$action" ]]; then
         dialog --colors --msgbox "\Zb\Z1Error: No action selected.\Zn" 5 40
@@ -896,16 +1177,21 @@ EOF
             dialog --colors --msgbox "\Zb\Z1Error: Failed to generate the graph.\Zn" 5 40
             return 1
         fi
+
+    elif [[ "$action" == "3" ]]; then
+        # حذف لاگ
+        dialog --yesno "Are you sure you want to delete the log file $log_file?" 7 40
+        if [[ $? -eq 0 ]]; then
+            rm -f "$log_file"
+            dialog --colors --msgbox "\Zb\Z2Log file $log_file has been deleted.\Zn" 5 40
+        fi
+
     else
         return 0  # بازگشت به منوی قبلی
     fi
 
     return 0
 }
-
-
-
-
 
 
 generate_pdf_report() {
@@ -1069,11 +1355,146 @@ EOF
     fi
 }
 
+run_and_manage_speed_test() {
+    get_terminal_size  # تنظیم ابعاد ترمینال
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/Speedtest"
+
+    # ایجاد دایرکتوری لاگ‌ها اگر وجود ندارد
+    if [ ! -d "$log_dir" ]; then
+        mkdir -p "$log_dir"
+    fi
+
+    # بررسی اینکه آیا speedtest-okla نصب شده است یا نه
+    if ! command -v speedtest &> /dev/null; then
+        dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: speedtest-okla is not installed. Installing now...\Zn" 5 40
+        
+        # نصب speedtest-okla
+        sudo apt update && sudo apt install speedtest -y
+        
+        # بررسی موفقیت‌آمیز بودن نصب
+        if ! command -v speedtest &> /dev/null; then
+            dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: Failed to install speedtest-okla.\Zn" 5 40
+            return 1
+        fi
+    fi
+
+    while true; do
+        # نمایش منوی اصلی برای Speedtest و مدیریت لاگ‌ها
+        choice=$(dialog --colors --menu "\Zb\Z2Speedtest and Log Management\Zn" "$dialog_height" "$dialog_width" 5 \
+            1 "\Zb\Z2Run Speed Test\Zn" \
+            2 "\Zb\Z2View Speed Test Logs\Zn" \
+            3 "\Zb\Z2Delete Speed Test Logs\Zn" \
+            4 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
+
+        case $choice in
+            1)
+                # اجرای speedtest-okla و ذخیره نتیجه در یک فایل موقت
+                result_file=$(mktemp)
+                dialog --infobox "\Zb\Z2Running speed test, please wait...\Zn" 5 50
+                
+                # سوال از کاربر برای ذخیره لاگ
+                dialog --yesno "Do you want to save the speed test log?" 7 40
+                save_log=$?
+
+                # اجرای speedtest به صورت پویا
+                (
+                    if [[ $save_log -eq 0 ]]; then
+                        timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+                        log_file="$log_dir/speedtest_log_$timestamp.txt"
+                        speedtest --progress=no | tee "$result_file" "$log_file"  
+                    else
+                        speedtest --progress=no | tee "$result_file"  
+                    fi
+                ) | dialog --programbox "Speed Test in Progress..." "$dialog_height" "$dialog_width"
+
+                # بررسی موفقیت‌آمیز بودن اجرای تست سرعت
+                if [[ $? -ne 0 ]]; then
+                    dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: Failed to run speedtest.\Zn" 10 40
+                    rm -f "$result_file"
+                    continue
+                fi
+
+                rm -f "$result_file"
+
+                # اطلاع به کاربر در صورت ذخیره لاگ
+                if [[ $save_log -eq 0 ]]; then
+                    dialog --colors --msgbox "\Zb\Z2Log has been saved at $log_dir/$log_file.\Zn" 10 40
+                fi
+                ;;
+            
+            2)
+                # نمایش لاگ‌های ذخیره‌شده
+                log_files=($(ls "$log_dir"/*.txt 2>/dev/null))
+
+                if [[ ${#log_files[@]} -eq 0 ]]; then
+                    dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: No log files found in the directory.\Zn" 10 40
+                    continue
+                fi
+
+                # آماده‌سازی لیست فایل‌های لاگ برای نمایش
+                file_list=()
+                index=1
+                for file in "${log_files[@]}"; do
+                    file_list+=("$index" "$(basename "$file")")
+                    index=$((index + 1))
+                done
+
+                # نمایش منوی انتخاب فایل لاگ برای مشاهده
+                selected_index=$(dialog --colors --menu "\Zb\Z2Choose a log file to view:\Zn" 15 60 10 "${file_list[@]}" 3>&1 1>&2 2>&3)
+
+                if [[ -z "$selected_index" ]]; then
+                    dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: No log file selected.\Zn" 5 40
+                    continue
+                fi
+
+                # نمایش فایل لاگ انتخاب‌شده
+                log_file="${log_files[$((selected_index - 1))]}"
+                dialog --textbox "$log_file" "$dialog_height" "$dialog_width"
+                ;;
+            
+            3)
+                # حذف لاگ‌ها
+                log_files=($(ls "$log_dir"/*.txt 2>/dev/null))
+
+                if [[ ${#log_files[@]} -eq 0 ]]; then
+                    dialog --colors --msgbox "\Zb\Z1\Zb\Z1Error: No log files found in the directory.\Zn" 5 40
+                    continue
+                fi
+
+                # ساخت لیست فایل‌ها برای چک‌باکس
+                file_list=()
+                index=1
+                for file in "${log_files[@]}"; do
+                    file_list+=("$index" "$(basename "$file")" "OFF")
+                    index=$((index + 1))
+                done
+
+                # نمایش چک‌باکس برای انتخاب فایل‌های لاگ برای حذف
+                selected_files=$(dialog --stdout --checklist "\Zb\Z2Choose logs to delete:\Zn" 15 60 10 "${file_list[@]}")
+
+                if [[ -z "$selected_files" ]]; then
+                    dialog --colors --msgbox "No logs selected for deletion." 5 40
+                    continue
+                fi
+
+                # تبدیل ایندکس‌های انتخابی به نام فایل‌ها و حذف آن‌ها
+                for i in $selected_files; do
+                    log_file="${log_files[$((i - 1))]}"
+                    rm -f "$log_file"
+                done
+
+                dialog --colors --msgbox "\Zb\Z2Selected logs have been deleted.\Zn" 5 40
+                ;;
+            
+            4)
+                break  
+                ;;
+        esac
+    done
+}
 
 
 #################################################################
-
-
 
 monitor_resources() {
     get_terminal_size  # استفاده از تابع برای تعیین ابعاد دیالوگ
@@ -1093,8 +1514,8 @@ monitor_resources() {
         5 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
     # مدیریت انتخاب نامعتبر یا لغو
-    if [[ -z "$choice" ]]; then
-        logs_resources_submenu
+    if [[ -z "$choice" || "$choice" == "5" ]]; then
+        logs_resources_submenu  # بازگشت به منوی فرعی
         return
     fi
 
@@ -1106,13 +1527,7 @@ monitor_resources() {
         return
     fi
 
-    # اگر گزینه 5 انتخاب شود بدون سوال درباره ذخیره لاگ به منوی قبلی برمی‌گردد
-    if [[ "$choice" == "5" ]]; then
-        network_monitoring  # بازگشت به منوی اصلی
-        return
-    fi
-
-    # سوال برای ذخیره لاگ اگر گزینه 5 انتخاب نشده باشد
+    # سوال برای ذخیره لاگ فقط در صورت انتخاب گزینه‌های 1، 2 یا 3
     dialog --yesno "Do you want to save the resource monitoring log?" 7 40
     save_log=$?
 
@@ -1154,6 +1569,9 @@ monitor_resources() {
             (
                 while true; do
                     df -h > "$temp_file"
+                    if [[ $save_log -eq 0 ]]; then
+                        df -h >> "$log_file"  # ذخیره لاگ در صورت نیاز
+                    fi
                     sleep 5  # تنظیم بازه به‌روزرسانی
                 done
             ) &
@@ -1172,7 +1590,7 @@ monitor_resources() {
             ;;
         *)
             dialog --colors --msgbox "\Zb\Z1Invalid option. Please try again.\Zn" 5 40
-            logs_resources_submenu  
+            logs_resources_submenu  # بازگشت به منوی فرعی
             ;;
     esac
 
@@ -1181,6 +1599,7 @@ monitor_resources() {
         dialog --colors --msgbox "\Zb\Z2Log has been saved at $log_file\Zn" 5 40
     fi
 }
+
 
 view_logs() {
     get_terminal_size  # استفاده از تابع برای تعیین ابعاد دیالوگ
@@ -1248,7 +1667,7 @@ view_logs() {
                 index=$((index + 1))
             done
 
-            selected_files=$(dialog --stdout --checklist "\Zb\Z2Choose log files to delete:\Zn" "$dialog_height" "$dialog_width" 10 "${file_list[@]}")
+            selected_files=$(dialog --stdout --checklist "Choose log files to delete:" "$dialog_height" "$dialog_width" 10 "${file_list[@]}")
 
             if [[ -z "$selected_files" ]]; then
                 logs_resources_submenu
@@ -1279,7 +1698,120 @@ view_logs() {
 
 
 #################################################################
+send_selected_logs_via_telegram() {
+    get_terminal_size  # استفاده از تابع برای تنظیم ابعاد دیالوگ
+    config_file="$HOME/net-tool/telegram_config.txt"
+    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/"
 
+    # بررسی وجود فایل تنظیمات
+    if [ ! -f "$config_file" ]; then
+        # درخواست API Token و User ID از کاربر
+        bot_api_token=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter your Telegram Bot API Token:\Zn" 8 40)
+        user_id=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter the recipient's Telegram User ID:\Zn" 8 40)
+
+        if [[ -z "$bot_api_token" || -z "$user_id" ]]; then
+            dialog --colors --msgbox "\Zb\Z1Error: API Token or User ID cannot be empty.\Zn" 5 40
+            return
+        fi
+
+        # ذخیره API Token و User ID در فایل تنظیمات
+        echo "BOT_API_TOKEN=$bot_api_token" > "$config_file"
+        echo "USER_ID=$user_id" >> "$config_file"
+
+        dialog --colors --msgbox "\Zb\Z2Configuration saved. You won't need to input the API Token and User ID again.\Zn" 5 40
+    else
+        # بارگذاری API Token و User ID از فایل تنظیمات
+        source "$config_file"
+    fi
+
+    # بررسی وجود دایرکتوری لاگ‌ها
+    if [ ! -d "$log_dir" ]; then
+        dialog --colors --msgbox "\Zb\Z1Error: Log directory does not exist.\Zn" 5 40
+        return
+    fi
+
+    # پیدا کردن پوشه‌های موجود در دایرکتوری لاگ‌ها
+    sub_dirs=($(find "$log_dir" -mindepth 1 -maxdepth 1 -type d))
+    
+    if [[ ${#sub_dirs[@]} -eq 0 ]]; then
+        dialog --colors --msgbox "\Zb\Z1Error: No log directories found in $log_dir.\Zn" 5 40
+        return
+    fi
+
+    # ساخت لیست پوشه‌ها برای چک‌باکس
+    file_list=()
+    index=1
+    for dir in "${sub_dirs[@]}"; do
+        dir_name=$(basename "$dir")
+        file_list+=("$index" "$dir_name" "OFF")  # "OFF" برای غیرفعال کردن چک‌باکس پیش‌فرض
+        index=$((index + 1))
+    done
+
+    # نمایش چک‌باکس برای انتخاب پوشه‌های لاگ
+    selected_dirs=$(dialog --stdout --checklist "Choose log directories to send via Telegram:" 15 60 10 "${file_list[@]}")
+
+    if [[ -z "$selected_dirs" ]]; then
+        dialog --colors --msgbox "No directories selected for sending." 5 40
+        return
+    fi
+
+    # تبدیل ایندکس‌های انتخابی به نام پوشه‌ها و ارسال آن‌ها به تلگرام
+    selected_names=()
+    for i in $selected_dirs; do
+        dir_name="${file_list[$((i * 3 - 2))]}"
+        selected_names+=("$dir_name")
+        zip_file="$log_dir/${dir_name}.zip"
+
+        # زیپ کردن محتویات پوشه
+        zip -r "$zip_file" "$log_dir/$dir_name" > /dev/null 2>&1
+        
+        if [[ ! -f "$zip_file" ]]; then
+            dialog --colors --msgbox "\Zb\Z1Error: Failed to create ZIP for $dir_name.\Zn" 5 40
+            continue
+        fi
+
+        # استفاده از اسکریپت Python برای ارسال فایل زیپ از طریق Telegram Bot API
+        python3 << EOF
+import requests
+
+# Telegram Bot API token و User ID
+bot_api_token = '$BOT_API_TOKEN'
+user_id = '$USER_ID'
+
+# فایل ZIP برای ارسال
+zip_file = '$zip_file'
+zip_filename = zip_file.split('/')[-1]
+
+# ارسال فایل به تلگرام
+with open(zip_file, 'rb') as f:
+    response = requests.post(
+        f'https://api.telegram.org/bot{bot_api_token}/sendDocument',
+        data={'chat_id': user_id, 'caption': 'Here is the log report for $dir_name.'},
+        files={'document': (zip_filename, f)}
+    )
+
+print(response.status_code)
+print(response.json())
+EOF
+
+        # بررسی موفقیت‌آمیز بودن ارسال
+        if [[ $? -eq 1 ]]; then
+            dialog --colors --msgbox "\Zb\Z1Error: Failed to send the log directory $dir_name via Telegram.\Zn" 6 40
+        fi
+
+        # حذف فایل زیپ پس از ارسال
+        rm -f "$zip_file"
+    done
+
+    # نمایش پیغام نهایی برای پوشه‌های ارسال شده
+    if [[ ${#selected_names[@]} -gt 0 ]]; then
+        selected_str=$(printf ", " "${selected_names[@]}")
+        dialog --colors --msgbox "\Zb\Z2The following directories were successfully sent via Telegram\Zn" 7 50
+    fi
+}
+
+
+#################################################################
 
 # منوی اصلی
 function network_monitoring() {
@@ -1291,10 +1823,11 @@ function network_monitoring() {
             2 "\Zb\Z2Port and Traffic Monitoring\Zn" \
             3 "\Zb\Z2Bandwidth Monitoring and Reports\Zn" \
             4 "\Zb\Z2Logs and Resources\Zn" \
-            5 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
+            5 "\Zb\Z4Send All Logs via Telegram\Zn" \
+            6 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
-            break  # خروج در صورت فشردن کلید کنسل
+            break 
         fi
 
         case $choice in
@@ -1302,7 +1835,8 @@ function network_monitoring() {
             2) port_traffic_monitoring_submenu ;;
             3) bandwidth_reports_submenu ;;
             4) logs_resources_submenu ;;
-            5) $BASE_DIR/.././net-tool.sh; exit 0 ;;
+            5)send_selected_logs_via_telegram ;;
+            6) $BASE_DIR/.././net-tool.sh; exit 0 ;;
             *) break ;;
         esac
     done
@@ -1320,14 +1854,14 @@ function device_monitoring_submenu() {
             4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
-            break  # خروج در صورت فشردن کلید کنسل
+            break 
         fi
 
         case $choice in
             1) ping_devices ;;
             2) view_connections ;;
             3) monitor_dns ;;
-            4) network_monitoring;;  # بازگشت به منوی اصلی
+            4) network_monitoring;;  
         esac
     done
 }
@@ -1344,14 +1878,14 @@ function port_traffic_monitoring_submenu() {
             4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
-            break  # خروج در صورت فشردن کلید کنسل
+            break 
         fi
 
         case $choice in
             1) view_port_table ;;
             2) check_specific_port ;;
             3) monitor_ports_and_traffic ;;
-            4) network_monitoring;;  # بازگشت به منوی اصلی
+            4) network_monitoring;;  
         esac
     done
 }
@@ -1365,7 +1899,8 @@ function bandwidth_reports_submenu() {
             2 "\Zb\Z2Generate Bandwidth Graph\Zn" \
             3 "\Zb\Z2Generate PDF Report\Zn" \
             4 "\Zb\Z2Save and Send Report\Zn" \
-            5 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
+            5 "\Zb\Z2Run and Manage Speed Test\Zn" \
+            6 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
             break 
@@ -1376,19 +1911,19 @@ function bandwidth_reports_submenu() {
             2) generate_bandwidth_graph ;;
             3) generate_pdf_report ;;
             4) save_and_send_report_via_telegram ;;
-            5) network_monitoring ;;  
+            5) run_and_manage_speed_test;;
+            6) network_monitoring ;;  
         esac
     done
 }
 
-# زیرمنو برای نمایش لاگ‌ها و مانیتورینگ منابع
 function logs_resources_submenu() {
     get_terminal_size
     while true; do
         choice=$(dialog --colors --backtitle "\Zb\Z4Logs and Resources\Zn" --title "\Zb\Z3Logs and Resources\Zn" \
             --menu "\nChoose an option:" "$dialog_height" "$dialog_width" 10 \
             1 "\Zb\Z2Monitor Resources\Zn" \
-            2 "\Zb\Z2View Logs\Zn" \
+            2 "\Zb\Z2Manage Resources Log\Zn" \
             3 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
