@@ -78,9 +78,7 @@ install_dependencies() {
     check_and_install libcairo2
     check_and_install libffi-dev
     check_and_install libssl-dev
-
-    echo "Installing Speedtest CLI..."
-    install_speedtest  
+ 
     echo "Checking for Python packages..."
 
     read -p "Do you want to upgrade pip to the latest version (Default NO)? (y/N): " UPGRADE_PIP
