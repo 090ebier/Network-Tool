@@ -80,7 +80,8 @@ After installation, the tool will start by displaying a welcome message, followe
 3. **Open vSwitch Management**: Manage Open vSwitch (OVS) configurations.
 4. **Network Monitoring**: Monitor real-time network traffic and statistics.
 5. **Install/Update Script**: Update the tool to the latest version or reinstall if needed.
-6. **Exit**: Quit the tool.
+6. 6. **Switch to Dark/Light Theme**: Toggle between dark and light modes to adjust the interface appearance.
+7. **Exit**: Quit the tool.
 
 Simply select the desired option, and the corresponding module or task will be executed.
 
