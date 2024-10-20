@@ -67,7 +67,7 @@ main_menu() {
         THEME_OPTION="Switch to Dark Theme"
     fi
 
-    dialog --colors --backtitle "$TITLE" --title "$TITLE" --menu "$SYSTEM_INFO\n\n\Zb\Z0Choose an option:\Zn" 20 70 7 \
+    dialog --colors --backtitle "$TITLE" --title "$TITLE" --menu "$SYSTEM_INFO\n\n\Zb\Z0Choose an option:\Zn" 25 70 7 \
         1 "\Zb\Z2Basic Linux Network Configuration\Zn" \
         2 "\Zb\Z2Firewall Management (NFTables)\Zn" \
         3 "\Zb\Z2Open vSwitch Management\Zn" \
