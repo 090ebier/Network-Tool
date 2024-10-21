@@ -241,6 +241,10 @@ set_resource_thresholds() {
 
 telegram_module_menu() {
     get_terminal_size
+    if [ ! -f "$config_file" ]; then
+        dialog --colors --msgbox "\Zb\Z1Error: Telegram config not found. Please configure Telegram first.\Zn" 6 40
+        return 1 
+    fi
     setup_telegram_config  
 
     while true; do
