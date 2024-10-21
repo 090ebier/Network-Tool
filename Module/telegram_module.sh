@@ -174,14 +174,16 @@ check_service_status() {
 reset_monitoring_service() {
     service_name="resource_monitoring.service"
 
+    # ریستارت سرویس
     sudo systemctl restart "$service_name"
     if [ $? -eq 0 ]; then
-        echo "Service $service_name restarted successfully."
+        dialog --colors --msgbox "\Zb\Z2Service $service_name restarted successfully.\Zn" 7 40
     else
-        echo "Failed to restart $service_name."
+        dialog --colors --msgbox "\Zb\Z1Failed to restart $service_name.\Zn" 7 40
         return 1
     fi
 }
+
 
 
 # تابع حذف سرویس مانیتورینگ
