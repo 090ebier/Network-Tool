@@ -1,6 +1,4 @@
 #!/bin/bash
-
-BASE_DIR=$(dirname "$(readlink -f "$0")")
 config_file="$HOME/net-tool/telegram_config.txt"
 log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/"
 monitoring_service_file="/etc/systemd/system/resource_monitoring.service"
