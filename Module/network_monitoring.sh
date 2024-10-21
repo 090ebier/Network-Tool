@@ -1718,7 +1718,7 @@ function network_monitoring() {
             2) port_traffic_monitoring_submenu ;;
             3) bandwidth_reports_submenu ;;
             4) logs_resources_submenu ;;
-            5) $BASE_DIR/./telegram_module.sh ;;
+            5) $BASE_DIR/telegram_module.sh ;;
             6) clear;$BASE_DIR/../net-tool.sh; exit 0 ;;
             *) break ;;
         esac
