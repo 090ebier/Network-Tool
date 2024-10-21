@@ -1,4 +1,5 @@
 #!/bin/bash
+BASE_DIR=$(dirname "$(readlink -f "$0")")
 config_file="$HOME/net-tool/telegram_config.txt"
 log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/"
 monitoring_service_file="/etc/systemd/system/resource_monitoring.service"
@@ -141,7 +142,7 @@ Description=Resource Monitoring and Telegram Notification Service
 After=network.target
 
 [Service]
-ExecStart=/bin/bash resource_monitoring.sh
+ExecStart=/bin/bash $BASE_DIR/resource_monitoring.sh
 Restart=always
 User=$USER
 Environment=DISPLAY=:0
