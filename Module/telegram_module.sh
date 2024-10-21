@@ -15,12 +15,13 @@ get_terminal_size() {
 
 setup_telegram_config() {
     if [ ! -f "$config_file" ]; then
+
         bot_api_token=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter your Telegram Bot API Token:\Zn" 8 40)
         user_id=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter the recipient's Telegram User ID:\Zn" 8 40)
 
         if [[ -z "$bot_api_token" || -z "$user_id" ]]; then
             dialog --colors --msgbox "\Zb\Z1Error: API Token or User ID cannot be empty.\Zn" 5 40
-            return 1
+            return 1  
         fi
 
         # ذخیره API Token و User ID در فایل تنظیمات
@@ -29,8 +30,9 @@ setup_telegram_config() {
 
         dialog --colors --msgbox "\Zb\Z2Configuration saved. You won't need to input the API Token and User ID again.\Zn" 5 40
     else
-        source "$config_file"
+        source "$config_file"  
     fi
+    return 0  
 }
 
 send_file_to_telegram() {
@@ -241,11 +243,10 @@ set_resource_thresholds() {
 
 telegram_module_menu() {
     get_terminal_size
-    if [ ! -f "$config_file" ]; then
-        dialog --colors --msgbox "\Zb\Z1Error: Telegram config not found. Please configure Telegram first.\Zn" 6 40
+    setup_telegram_config
+    if [ $? -ne 0 ]; then
         return 1 
     fi
-    setup_telegram_config  
 
     while true; do
         choice=$(dialog --colors --backtitle "\Zb\Z4Network Monitoring Management\Zn" --menu "\n\Zb\Z4 Telegram Module\Zn\n\n\Zb\Z3Choose an option below:\Zn" "$dialog_height" "$dialog_width" 10 \
