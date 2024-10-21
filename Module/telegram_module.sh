@@ -4,7 +4,6 @@ config_file="$HOME/net-tool/telegram_config.txt"
 log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/"
 monitoring_service_file="/etc/systemd/system/resource_monitoring.service"
 
-
 get_terminal_size() {
     term_height=$(tput lines)
     term_width=$(tput cols)
@@ -14,10 +13,8 @@ get_terminal_size() {
     if [ "$dialog_width" -lt 50 ]; then dialog_width=50; fi
 }
 
-
 setup_telegram_config() {
     if [ ! -f "$config_file" ]; then
-        # درخواست API Token و User ID از کاربر
         bot_api_token=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter your Telegram Bot API Token:\Zn" 8 40)
         user_id=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter the recipient's Telegram User ID:\Zn" 8 40)
 
@@ -36,8 +33,6 @@ setup_telegram_config() {
     fi
 }
 
-
-# تابع ارسال فایل به تلگرام
 send_file_to_telegram() {
     local file_path=$1
     local caption=$2
@@ -48,7 +43,6 @@ send_file_to_telegram() {
     fi
     source "$config_file"
 
-    # ارسال فایل به تلگرام
     python3 << EOF
 import requests
 bot_api_token = '$BOT_API_TOKEN'
@@ -68,7 +62,6 @@ print(response.json())
 EOF
 }
 
-# تابع ارسال لاگ‌های انتخابی
 send_selected_logs_via_telegram() {
     get_terminal_size  
 
@@ -77,7 +70,6 @@ send_selected_logs_via_telegram() {
         return
     fi
 
-    
     sub_dirs=($(find "$log_dir" -mindepth 1 -maxdepth 1 -type d))
     
     if [[ ${#sub_dirs[@]} -eq 0 ]]; then
@@ -85,7 +77,6 @@ send_selected_logs_via_telegram() {
         return
     fi
 
-    
     file_list=()
     index=1
     for dir in "${sub_dirs[@]}"; do
@@ -126,9 +117,6 @@ send_selected_logs_via_telegram() {
         dialog --colors --msgbox "\Zb\Z2The following directories were successfully sent via Telegram\Zn" 7 50
     fi
 }
-
-
-
 
 
 ############################################
