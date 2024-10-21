@@ -1695,134 +1695,18 @@ view_logs() {
     esac
 }
 
-
-#################################################################
-send_selected_logs_via_telegram() {
-    get_terminal_size  # استفاده از تابع برای تنظیم ابعاد دیالوگ
-    config_file="$HOME/net-tool/telegram_config.txt"
-    log_dir="$HOME/net-tool/backup_Log/Network_Monitoring/"
-
-    # بررسی وجود فایل تنظیمات
-    if [ ! -f "$config_file" ]; then
-        # درخواست API Token و User ID از کاربر
-        bot_api_token=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter your Telegram Bot API Token:\Zn" 8 40)
-        user_id=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter the recipient's Telegram User ID:\Zn" 8 40)
-
-        if [[ -z "$bot_api_token" || -z "$user_id" ]]; then
-            dialog --colors --msgbox "\Zb\Z1Error: API Token or User ID cannot be empty.\Zn" 5 40
-            return
-        fi
-
-        # ذخیره API Token و User ID در فایل تنظیمات
-        echo "BOT_API_TOKEN=$bot_api_token" > "$config_file"
-        echo "USER_ID=$user_id" >> "$config_file"
-
-        dialog --colors --msgbox "\Zb\Z2Configuration saved. You won't need to input the API Token and User ID again.\Zn" 5 40
-    else
-        # بارگذاری API Token و User ID از فایل تنظیمات
-        source "$config_file"
-    fi
-
-    # بررسی وجود دایرکتوری لاگ‌ها
-    if [ ! -d "$log_dir" ]; then
-        dialog --colors --msgbox "\Zb\Z1Error: Log directory does not exist.\Zn" 5 40
-        return
-    fi
-
-    # پیدا کردن پوشه‌های موجود در دایرکتوری لاگ‌ها
-    sub_dirs=($(find "$log_dir" -mindepth 1 -maxdepth 1 -type d))
-    
-    if [[ ${#sub_dirs[@]} -eq 0 ]]; then
-        dialog --colors --msgbox "\Zb\Z1Error: No log directories found in $log_dir.\Zn" 5 40
-        return
-    fi
-
-    # ساخت لیست پوشه‌ها برای چک‌باکس
-    file_list=()
-    index=1
-    for dir in "${sub_dirs[@]}"; do
-        dir_name=$(basename "$dir")
-        file_list+=("$index" "$dir_name" "OFF")  # "OFF" برای غیرفعال کردن چک‌باکس پیش‌فرض
-        index=$((index + 1))
-    done
-
-    # نمایش چک‌باکس برای انتخاب پوشه‌های لاگ
-    selected_dirs=$(dialog --stdout --checklist "Choose log directories to send via Telegram:" 15 60 10 "${file_list[@]}")
-
-    if [[ -z "$selected_dirs" ]]; then
-        dialog --colors --msgbox "No directories selected for sending." 5 40
-        return
-    fi
-
-    # تبدیل ایندکس‌های انتخابی به نام پوشه‌ها و ارسال آن‌ها به تلگرام
-    selected_names=()
-    for i in $selected_dirs; do
-        dir_name="${file_list[$((i * 3 - 2))]}"
-        selected_names+=("$dir_name")
-        zip_file="$log_dir/${dir_name}.zip"
-
-        # زیپ کردن محتویات پوشه
-        zip -r "$zip_file" "$log_dir/$dir_name" > /dev/null 2>&1
-        
-        if [[ ! -f "$zip_file" ]]; then
-            dialog --colors --msgbox "\Zb\Z1Error: Failed to create ZIP for $dir_name.\Zn" 5 40
-            continue
-        fi
-
-        # استفاده از اسکریپت Python برای ارسال فایل زیپ از طریق Telegram Bot API
-        python3 << EOF
-import requests
-
-# Telegram Bot API token و User ID
-bot_api_token = '$BOT_API_TOKEN'
-user_id = '$USER_ID'
-
-# فایل ZIP برای ارسال
-zip_file = '$zip_file'
-zip_filename = zip_file.split('/')[-1]
-
-# ارسال فایل به تلگرام
-with open(zip_file, 'rb') as f:
-    response = requests.post(
-        f'https://api.telegram.org/bot{bot_api_token}/sendDocument',
-        data={'chat_id': user_id, 'caption': 'Here is the log report for $dir_name.'},
-        files={'document': (zip_filename, f)}
-    )
-
-print(response.status_code)
-print(response.json())
-EOF
-
-        # بررسی موفقیت‌آمیز بودن ارسال
-        if [[ $? -eq 1 ]]; then
-            dialog --colors --msgbox "\Zb\Z1Error: Failed to send the log directory $dir_name via Telegram.\Zn" 6 40
-        fi
-
-        # حذف فایل زیپ پس از ارسال
-        rm -f "$zip_file"
-    done
-
-    # نمایش پیغام نهایی برای پوشه‌های ارسال شده
-    if [[ ${#selected_names[@]} -gt 0 ]]; then
-        selected_str=$(printf ", " "${selected_names[@]}")
-        dialog --colors --msgbox "\Zb\Z2The following directories were successfully sent via Telegram\Zn" 7 50
-    fi
-}
-
-
 #################################################################
 
-# منوی اصلی
 function network_monitoring() {
     get_terminal_size
     while true; do
-        choice=$(dialog --colors --backtitle "\Zb\Z4Network Monitoring Tool\Zn" --title "\Zb\Z3Main Menu\Zn" \
+        choice=$(dialog --colors --backtitle "\Zb\Z4Network Monitoring Tool\Zn" --title "\Zb\Z3Network Monitoring Tool\Zn" \
             --menu "\nChoose an option:" "$dialog_height" "$dialog_width" 10 \
             1 "\Zb\Z2Monitoring Devices\Zn" \
             2 "\Zb\Z2Port and Traffic Monitoring\Zn" \
             3 "\Zb\Z2Bandwidth Monitoring and Reports\Zn" \
             4 "\Zb\Z2Logs and Resources\Zn" \
-            5 "\Zb\Z4Send All Logs via Telegram\Zn" \
+            5 "\Zb\Z4Manage Logs via Telegram\Zn" \
             6 "\Zb\Z1Return to Main Menu\Zn" 3>&1 1>&2 2>&3)
 
         if [ $? -ne 0 ]; then
@@ -1834,8 +1718,8 @@ function network_monitoring() {
             2) port_traffic_monitoring_submenu ;;
             3) bandwidth_reports_submenu ;;
             4) logs_resources_submenu ;;
-            5)send_selected_logs_via_telegram ;;
-            6) clear;$BASE_DIR/.././net-tool.sh; exit 0 ;;
+            5) $BASE_DIR/./telegram_module.sh ;;
+            6) clear;$BASE_DIR/../net-tool.sh; exit 0 ;;
             *) break ;;
         esac
     done
