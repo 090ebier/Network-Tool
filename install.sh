@@ -68,6 +68,7 @@ install_dependencies() {
     check_and_install iproute2  # for ss
     check_and_install ifstat
     check_and_install zip
+    check_and_install bc
     check_and_install speedtest-cli
     check_and_install python3
     check_and_install python3-pip
