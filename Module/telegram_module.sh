@@ -254,7 +254,7 @@ telegram_module_menu() {
             1) send_selected_logs_via_telegram ;;
             2) monitoring_service_menu ;;  
             3) set_resource_thresholds ;; 
-            4) clear;bash network_monitoring.sh; exit 0 ;;  # بازگشت به منوی مانیتورینگ
+            4) clear;sudo bash network_monitoring.sh; exit 0 ;;  # بازگشت به منوی مانیتورینگ
             *) dialog --colors --msgbox "\n\Zb\Z1Invalid option! Please choose a valid option.\Zn" 6 40 ;;
         esac
     done
