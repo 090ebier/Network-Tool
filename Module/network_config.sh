@@ -519,7 +519,7 @@ basic_linux_network_configuration() {
             4) manage_routes ;;
             5) set_dns ;;
             6) set_hostname ;;
-            7) clear;$BASE_DIR/.././net-tool.sh; exit 0 ;;  # Return to main menu and close this script
+            7) clear;bash $BASE_DIR/../net-tool.sh; exit 0 ;;  # Return to main menu and close this script
         esac
     done
 }
