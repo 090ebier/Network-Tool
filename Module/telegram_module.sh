@@ -171,6 +171,18 @@ check_service_status() {
     fi
 }
 
+reset_monitoring_service() {
+    service_name="resource_monitoring.service"
+
+    sudo systemctl restart "$service_name"
+    if [ $? -eq 0 ]; then
+        echo "Service $service_name restarted successfully."
+    else
+        echo "Failed to restart $service_name."
+        return 1
+    fi
+}
+
 
 # تابع حذف سرویس مانیتورینگ
 remove_monitoring_service() {
@@ -190,7 +202,8 @@ monitoring_service_menu() {
             1 "\Zb\Z2Create Monitoring Service\Zn" \
             2 "\Zb\Z2Check Service Status\Zn" \
             3 "\Zb\Z2Remove Monitoring Service\Zn" \
-            4 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
+            4 "\Zb\Z3Restart Monitoring Service\Zn" \
+            5 "\Zb\Z1Return to Previous Menu\Zn" 3>&1 1>&2 2>&3)
 
         case $choice in
             1)
@@ -203,7 +216,9 @@ monitoring_service_menu() {
                 remove_monitoring_service
                 ;;
             4)
-                break  
+                reset_monitoring_service
+                ;;
+            5)  break  
                 ;;
             *)
                 dialog --colors --msgbox "\Zb\Z1Invalid option. Please try again.\Zn" 5 40
