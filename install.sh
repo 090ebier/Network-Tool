@@ -45,9 +45,9 @@ check_and_install() {
 
 check_and_install_pip() {
     PIP_PKG_NAME=$1
-    if ! pip3 show $PIP_PKG_NAME >/dev/null 2>&1; then
+    if ! pip show $PIP_PKG_NAME >/dev/null 2>&1; then
         echo "$PIP_PKG_NAME is not installed. Installing with pip..."
-        pip3 install $PIP_PKG_NAME --break-system-packages || { echo "Failed to install Python package: $PIP_PKG_NAME."; exit 1; }
+        pip install $PIP_PKG_NAME --break-system-packages || { echo "Failed to install Python package: $PIP_PKG_NAME."; exit 1; }
     else
         echo "$PIP_PKG_NAME is already installed."
     fi
