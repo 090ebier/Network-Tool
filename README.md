@@ -21,14 +21,25 @@ The **Network Management Tool** is a script that helps system administrators man
 
 #### Prerequisites
 
-Before you install and use the **Network Management Tool**, ensure that the following packages are installed on your system:
+### Prerequisites
+Before installing and using the **Network Management Tool**, ensure the following packages and dependencies are installed on your system:
 
-- **Git**: To clone the repository.
-- **Dialog**: To create the user interface.
-- **NFTables**: For firewall management.
-- **nload**, **sysstat**, **net-tools**, **openvswitch-switch**, **tcpdump**, **dnsutils**, **iproute2**, **ifstat**: For various network management and monitoring functions.
-- **Python 3**: To run the necessary Python scripts.
-- **Pip3**: To install the required Python packages like `matplotlib`, `weasyprint`, and `requests`.
+- **Git**: Required to clone the repository from GitHub.
+- **Dialog**: Used for creating the user interface in terminal-based tools.
+- **NFTables**: Essential for firewall management tasks.
+- **nload, sysstat, net-tools, openvswitch-switch, tcpdump, dnsutils, iproute2, ifstat**: These tools are necessary for various network management, monitoring, and diagnostic functions.
+- **zip, bc**: Additional utilities for system management and handling compressed files.
+- **speedtest-cli**: For performing network speed tests.
+- **Python 3**: Required for running the tool’s Python scripts.
+- **Pip3**: To install and manage Python packages, such as:
+  - **matplotlib**: Used for plotting and visualizing network statistics.
+  - **weasyprint**: For generating PDF reports.
+  - **requests**: For handling HTTP requests in Python scripts.
+
+Additionally, ensure the following system libraries are installed for full compatibility with **WeasyPrint**:
+- **libpango-1.0-0, libpangoft2-1.0-0**: Required for text rendering.
+- **libcairo2**: Necessary for PDF and image generation.
+- **libffi-dev, libssl-dev**: Required for cryptographic and other low-level system tasks.
 
 ---
 
