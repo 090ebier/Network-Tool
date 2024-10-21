@@ -141,7 +141,7 @@ Description=Resource Monitoring and Telegram Notification Service
 After=network.target
 
 [Service]
-ExecStart=/bin/bash $BASE_DIR/resource_monitoring.sh
+ExecStart=/bin/bash resource_monitoring.sh
 Restart=always
 User=$USER
 Environment=DISPLAY=:0
