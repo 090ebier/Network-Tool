@@ -1271,7 +1271,7 @@ HTML(filename='$html_file').write_pdf('$pdf_file')
 
 
 save_and_send_report_via_telegram() {
-    get_terminal_size  # استفاده از تابع برای کنترل اندازه
+    get_terminal_size 
     config_file="$HOME/net-tool/telegram_config.txt"
 
     # بررسی وجود فایل تنظیمات
@@ -1280,9 +1280,10 @@ save_and_send_report_via_telegram() {
         bot_api_token=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter your Telegram Bot API Token:\Zn" 8 40)
         user_id=$(dialog --colors --stdout --inputbox "\Zb\Z2Enter the recipient's Telegram User ID:\Zn" 8 40)
 
+        # بررسی اینکه کاربر اطلاعات را وارد کرده یا خیر
         if [[ -z "$bot_api_token" || -z "$user_id" ]]; then
             dialog --colors --msgbox "\Zb\Z1Error: API Token or User ID cannot be empty.\Zn" 5 40
-            return
+            return  
         fi
 
         # ذخیره API Token و User ID در فایل تنظیمات
@@ -1295,7 +1296,6 @@ save_and_send_report_via_telegram() {
         source "$config_file"
     fi
 
-    # فیلتر کردن فایل‌های PDF از دایرکتوری
     pdf_files=($(find "$HOME/net-tool/backup_Log/Network_Monitoring/Bandwidth/" -type f -name "*.pdf"))
 
     if [[ ${#pdf_files[@]} -eq 0 ]]; then
@@ -1311,7 +1311,6 @@ save_and_send_report_via_telegram() {
         index=$((index + 1))
     done
 
-    # نمایش منوی انتخاب فایل PDF برای ارسال
     selected_index=$(dialog --colors --menu "\Zb\Z2Choose a PDF file to send via Telegram:\Zn" "$dialog_height" "$dialog_width" 10 "${file_list[@]}" 3>&1 1>&2 2>&3)
 
     if [[ -z "$selected_index" ]]; then
@@ -1323,7 +1322,7 @@ save_and_send_report_via_telegram() {
     pdf_file="${pdf_files[$((selected_index - 1))]}"
 
     # استفاده از اسکریپت Python برای ارسال فایل از طریق Telegram Bot API
-    python3 << EOF
+    response=$(python3 << EOF
 import requests
 
 # Telegram Bot API token و User ID
@@ -1342,17 +1341,18 @@ with open(pdf_file, 'rb') as f:
         files={'document': (pdf_filename, f)}
     )
 
+# بازگرداندن وضعیت پاسخ
 print(response.status_code)
-print(response.json())
 EOF
+)
 
-    # بررسی موفقیت‌آمیز بودن ارسال
-    if [[ $? -eq 0 ]]; then
+    if [[ "$response" -eq 200 ]]; then
         dialog --colors --msgbox "\Zb\Z2Report has been successfully sent via Telegram.\Zn" 5 40
     else
         dialog --colors --msgbox "\Zb\Z1Error: Failed to send the report via Telegram.\Zn" 6 40
     fi
 }
+
 
 run_and_manage_speed_test() {
     get_terminal_size  # تنظیم ابعاد ترمینال
