@@ -99,11 +99,15 @@ add_stateful_or_stateless_rule() {
     fi
 
     # Step 5: Get the destination port (skip for Any)
-    if [["$protocol" != "ip" ]]; then
+    if [[ "$protocol" != "ip" ]]; then
         port=$(dialog --colors --backtitle "\Zb\Z4NFTables Firewall Management\Zn" --title "\Zb\Z4Enter Destination Port\Zn" \
             --inputbox "\n\Zb\Z3Enter destination port (e.g., 80 for HTTP, 1000-2000 for range):\Zn" "$dialog_height" "$dialog_width" 3>&1 1>&2 2>&3)
-        if [ $? -ne 0 ] || [ -z "$port" ]; then return; fi
-        port="$protocol dport $port"
+        if [ $? -ne 0 ]; then return; fi
+        if [ -n "$port" ]; then
+            port="$protocol dport $port"
+        else
+            port=""
+        fi
     else
         port=""
     fi
@@ -169,6 +173,7 @@ add_stateful_or_stateless_rule() {
     # Show confirmation
     show_msg "\Zb\Z3Rule added successfully:\Zn\n\nTable: $table\nChain: $chain_cmd\nConditions: ${rule_components[*]}\nAction: $action_cmd"
 }
+
 
 
 # Function to delete a rule or table using handle
