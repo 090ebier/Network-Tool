@@ -321,25 +321,34 @@ manage_routes() {
 
             # پرسش از کاربر برای ذخیره‌سازی دائمی
             dialog --yesno "Do you want to save this route persistently?" 10 50
-            response=$?
             if [ $response -eq 0 ]; then
                 # تشخیص نوع پیکربندی شبکه
                 config_type=$(detect_network_config)
 
                 if [ "$config_type" == "interfaces" ]; then
-                    echo -e "up ip route add $destination via $gateway dev $interface metric $metric" | sudo tee -a /etc/network/interfaces > /dev/null
-                    dialog --colors --msgbox "\Zb\Z2Route saved permanently in /etc/network/interfaces.\Zn" 5 40
+                    # بررسی وجود دایرکتوری /etc/network/interfaces.d/ و ایجاد آن در صورت عدم وجود
+                    if [ ! -d /etc/network/interfaces.d ]; then
+                        sudo mkdir -p /etc/network/interfaces.d
+                    fi
+
+                    # تنظیم مقدار پیش‌فرض برای metric در صورت عدم وارد کردن کاربر
+                    metric=${metric:-100}
+
+                    # افزودن روت به فایل مربوط به اینترفیس
+                    echo -e "up ip route add $destination via $gateway dev $interface metric $metric" | sudo tee -a /etc/network/interfaces.d/$interface > /dev/null
+                    dialog --colors --msgbox "\Zb\Z2Route saved permanently in /etc/network/interfaces.d/$interface.\Zn" 5 40
                 elif [ "$config_type" == "netplan" ]; then
+                    # تنظیم پیکربندی دائمی برای Netplan
                     sudo bash -c "cat << EOF >> /etc/netplan/99-custom-routes.yaml
-        network:
-            version: 2
-            ethernets:
-                $interface:
-                    routes:
-                        - to: $destination
-                        via: $gateway
-                        metric: $metric
-        EOF"
+            network:
+                version: 2
+                ethernets:
+                    $interface:
+                        routes:
+                            - to: $destination
+                            via: $gateway
+                            metric: $metric
+            EOF"
                     sudo chmod 600 /etc/netplan/*.yaml
                     sudo netplan apply
                     dialog --colors --msgbox "\Zb\Z2Route saved permanently in Netplan.\Zn" 5 40
@@ -366,17 +375,14 @@ manage_routes() {
                     index=$((index + 1))
                 done <<< "$routes"
 
-                # نمایش لیست روت‌ها به کاربر برای انتخاب
                 selected_route_index=$(dialog --stdout --menu "Choose a route to delete:" "$dialog_height" "$dialog_width" "${#route_list[@]}" "${route_list[@]}")
                 if [[ -z "$selected_route_index" ]]; then
                     dialog --colors --msgbox "\Zb\Z1No route selected!\Zn" 5 40
                     continue
                 fi
 
-                # گرفتن روت انتخاب‌شده از لیست
                 selected_route="${route_list[$((selected_route_index * 2 - 1))]}"
 
-                # استخراج مقصد از روت انتخاب‌شده
                 destination=$(echo "$selected_route" | awk '{print $1}')
 
                 # حذف روت
@@ -395,7 +401,7 @@ manage_routes() {
                 ;;
 
             3)  # نمایش روت‌های فعلی
-                routes=$(ip route show)  # دریافت لیست روت‌های فعلی
+                routes=$(ip route show) 
 
                 if [[ -z "$routes" ]]; then
                     dialog --colors --msgbox "\Zb\Z1No routes available!\Zn" 5 40
@@ -409,28 +415,27 @@ manage_routes() {
                 echo -e "| Destination    | Gateway        | Metric | Interface |" > "$temp_file"
                 echo -e "--------------------------------------------------------" >> "$temp_file"
 
-                # پردازش روت‌ها و مرتب‌سازی برای نمایش زیبا
-                echo "$routes" | awk '
-                {
-                    dest = ($1 == "default") ? "default" : $1;
-                    gw = ($2 == "via") ? $3 : "-";
-                
-                    # مقداردهی پیش‌فرض برای metric و interface
-                    metric = "-";
-                    iface = "-";
-                
-                    # یافتن metric و interface
-                    for (i = 1; i <= NF; i++) {
-                        if ($i == "metric") {
-                            metric = $(i + 1);  # مقدار بعد از metric را به عنوان عدد متریک در نظر بگیر
-                        }
-                        if ($i == "dev") {
-                            iface = $(i + 1);  # مقدار بعد از dev را به عنوان interface در نظر بگیر
-                        }
+            echo "$routes" | awk '
+            {
+                dest = ($1 == "default") ? "default" : $1;
+                gw = ($2 == "via") ? $3 : "-";
+
+                # مقداردهی پیش‌فرض برای metric و interface
+                metric = "-";
+                iface = "-";
+
+                # یافتن metric و interface
+                for (i = 1; i <= NF; i++) {
+                    if ($i == "metric") {
+                        metric = $(i + 1);  # مقدار بعد از metric را به عنوان عدد متریک در نظر بگیر
                     }
-                
-                    printf "| %-14s | %-13s | %-6s | %-9s |\n", dest, gw, metric, iface;
-                }'>> "$temp_file"
+                    if ($i == "dev") {
+                        iface = $(i + 1);  # مقدار بعد از dev را به عنوان interface در نظر بگیر
+                    }
+                }
+
+                printf "| %-14s | %-13s | %-6s | %-9s |\n", dest, gw, metric, iface;
+            }'>> "$temp_file"
 
                 # نمایش روت‌ها در قالب جدول
                 dialog --colors --title "\Zb\Z4Routing Table\Zn" --textbox "$temp_file" "$dialog_height" "$dialog_width"
