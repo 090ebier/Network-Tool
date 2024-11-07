@@ -410,14 +410,27 @@ manage_routes() {
                 echo -e "--------------------------------------------------------" >> "$temp_file"
 
                 # پردازش روت‌ها و مرتب‌سازی برای نمایش زیبا
-            echo "$routes" | awk '
-            {
-                dest = ($1 == "default") ? "default" : $1;
-                gw = ($2 == "via") ? $3 : "-";
-                metric = ($0 ~ /metric [0-9]+/) ? $(NF-1) : "-";
-                iface = ($NF ~ /^[a-zA-Z0-9]+$/) ? $NF : "-";
-                printf "| %-14s | %-13s | %-6s | %-9s |\n", dest, gw, metric, iface;
-            }' >> "$temp_file"
+                echo "$routes" | awk '
+                {
+                    dest = ($1 == "default") ? "default" : $1;
+                    gw = ($2 == "via") ? $3 : "-";
+                    
+                    # مقداردهی پیش‌فرض برای metric و interface
+                    metric = "-";
+                    iface = "-";
+                
+                    # یافتن metric و interface
+                    for (i = 1; i <= NF; i++) {
+                        if ($i == "metric") {
+                            metric = $(i + 1);  # مقدار بعد از metric را به عنوان عدد متریک در نظر بگیر
+                        }
+                        if ($i ~ /^[a-zA-Z0-9]+$/ && i == NF) {
+                            iface = $i;  # آخرین مقدار را به عنوان interface در نظر بگیر
+                        }
+                    }
+                
+                    printf "| %-14s | %-13s | %-6s | %-9s |\n", dest, gw, metric, iface;
+                }'>> "$temp_file"
 
                 # نمایش روت‌ها در قالب جدول
                 dialog --colors --title "\Zb\Z4Routing Table\Zn" --textbox "$temp_file" "$dialog_height" "$dialog_width"
