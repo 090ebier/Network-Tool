@@ -414,7 +414,7 @@ manage_routes() {
                 {
                     dest = ($1 == "default") ? "default" : $1;
                     gw = ($2 == "via") ? $3 : "-";
-                    
+                
                     # مقداردهی پیش‌فرض برای metric و interface
                     metric = "-";
                     iface = "-";
@@ -424,7 +424,8 @@ manage_routes() {
                         if ($i == "metric") {
                             metric = $(i + 1);  # مقدار بعد از metric را به عنوان عدد متریک در نظر بگیر
                         }
-                        if ($i ~ /^[a-zA-Z0-9]+$/ && i == NF) {
+                        # بررسی کنیم که interface معتبر است و در انتهای خط قرار دارد
+                        if ($i ~ /^[a-zA-Z0-9]+$/ && i == NF && $i != metric) {
                             iface = $i;  # آخرین مقدار را به عنوان interface در نظر بگیر
                         }
                     }
