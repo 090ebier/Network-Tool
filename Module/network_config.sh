@@ -424,9 +424,8 @@ manage_routes() {
                         if ($i == "metric") {
                             metric = $(i + 1);  # مقدار بعد از metric را به عنوان عدد متریک در نظر بگیر
                         }
-                        # بررسی کنیم که interface معتبر است و در انتهای خط قرار دارد
-                        if ($i ~ /^[a-zA-Z0-9]+$/ && i == NF && $i != metric) {
-                            iface = $i;  # آخرین مقدار را به عنوان interface در نظر بگیر
+                        if ($i == "dev") {
+                            iface = $(i + 1);  # مقدار بعد از dev را به عنوان interface در نظر بگیر
                         }
                     }
                 
