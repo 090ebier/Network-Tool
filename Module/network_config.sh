@@ -270,77 +270,85 @@ manage_routes() {
         if [ $? -ne 0 ]; then return; fi
 
         case $action in
-            1)  # افزودن روت جدید
-                destination=$(dialog --stdout --inputbox "Enter the destination network (e.g., 192.168.1.0/24):" "$dialog_height" "$dialog_width")
-                if [[ -z "$destination" ]]; then
-                    dialog --colors --msgbox "\Zb\Z1No destination entered!\Zn" 5 40
-                    continue
-                fi
+        1)  # افزودن روت جدید
+            destination=$(dialog --stdout --inputbox "Enter the destination network (e.g., 192.168.1.0/24):" "$dialog_height" "$dialog_width")
+            if [[ -z "$destination" ]]; then
+                dialog --colors --msgbox "\Zb\Z1No destination entered!\Zn" 5 40
+                continue
+            fi
 
-                gateway=$(dialog --stdout --inputbox "Enter the gateway IP (e.g., 192.168.1.1):" "$dialog_height" "$dialog_width")
-                if [[ -z "$gateway" ]]; then
-                    dialog --colors --msgbox "\Zb\Z1No gateway entered!\Zn" 5 40
-                    continue
-                fi
+            gateway=$(dialog --stdout --inputbox "Enter the gateway IP (e.g., 192.168.1.1):" "$dialog_height" "$dialog_width")
+            if [[ -z "$gateway" ]]; then
+                dialog --colors --msgbox "\Zb\Z1No gateway entered!\Zn" 5 40
+                continue
+            fi
 
-                # دریافت لیست اینترفیس‌ها و نمایش به کاربر
-                interfaces=$(ip -o link show | awk -F': ' '{print $2}' | grep -v lo)  # دریافت لیست اینترفیس‌ها به جز lo
+            # دریافت متریک از کاربر با مقدار پیش‌فرض 100
+            metric=$(dialog --stdout --inputbox "Enter the metric (default is 100):" "$dialog_height" "$dialog_width")
+            if [[ -z "$metric" ]]; then
+                metric=100  # مقدار پیش‌فرض برای متریک
+            fi
 
-                # آماده‌سازی لیست برای منوی dialog
-                interface_list=()
-                index=1
-                for iface in $interfaces; do
-                    interface_list+=("$index" "$iface")
-                    index=$((index + 1))
-                done
+            # دریافت لیست اینترفیس‌ها و نمایش به کاربر
+            interfaces=$(ip -o link show | awk -F': ' '{print $2}' | grep -v lo)  # دریافت لیست اینترفیس‌ها به جز lo
 
-                # نمایش منوی انتخاب اینترفیس به کاربر
-                selected_index=$(dialog --stdout --menu "Choose a network interface:" "$dialog_height" "$dialog_width" "${#interface_list[@]}" "${interface_list[@]}")
-                if [[ -z "$selected_index" ]]; then
-                    dialog --colors --msgbox "\Zb\Z1No interface selected!\Zn" 5 40
-                    continue
-                fi
+            # آماده‌سازی لیست برای منوی dialog
+            interface_list=()
+            index=1
+            for iface in $interfaces; do
+                interface_list+=("$index" "$iface")
+                index=$((index + 1))
+            done
 
-                # انتخاب اینترفیس بر اساس ورودی کاربر
-                interface="${interface_list[$((selected_index * 2 - 1))]}"
+            # نمایش منوی انتخاب اینترفیس به کاربر
+            selected_index=$(dialog --stdout --menu "Choose a network interface:" "$dialog_height" "$dialog_width" "${#interface_list[@]}" "${interface_list[@]}")
+            if [[ -z "$selected_index" ]]; then
+                dialog --colors --msgbox "\Zb\Z1No interface selected!\Zn" 5 40
+                continue
+            fi
 
-                # اجرای دستور برای افزودن روت
-                sudo ip route add "$destination" via "$gateway" dev "$interface"
-                if [[ $? -eq 0 ]]; then
-                    dialog --colors --msgbox "\Zb\Z2Route added successfully!\Zn" 5 40
+            # انتخاب اینترفیس بر اساس ورودی کاربر
+            interface="${interface_list[$((selected_index * 2 - 1))]}"
+
+            # اجرای دستور برای افزودن روت با متریک
+            sudo ip route add "$destination" via "$gateway" dev "$interface" metric "$metric"
+            if [[ $? -eq 0 ]]; then
+                dialog --colors --msgbox "\Zb\Z2Route added successfully!\Zn" 5 40
+            else
+                dialog --colors --msgbox "\Zb\Z1Failed to add route!\Zn" 5 40
+                continue
+            fi
+
+            # پرسش از کاربر برای ذخیره‌سازی دائمی
+            dialog --yesno "Do you want to save this route persistently?" 10 50
+            response=$?
+            if [ $response -eq 0 ]; then
+                # تشخیص نوع پیکربندی شبکه
+                config_type=$(detect_network_config)
+
+                if [ "$config_type" == "interfaces" ]; then
+                    echo -e "up ip route add $destination via $gateway dev $interface metric $metric" | sudo tee -a /etc/network/interfaces > /dev/null
+                    dialog --colors --msgbox "\Zb\Z2Route saved permanently in /etc/network/interfaces.\Zn" 5 40
+                elif [ "$config_type" == "netplan" ]; then
+                    sudo bash -c "cat << EOF >> /etc/netplan/99-custom-routes.yaml
+        network:
+            version: 2
+            ethernets:
+                $interface:
+                    routes:
+                        - to: $destination
+                        via: $gateway
+                        metric: $metric
+        EOF"
+                    sudo chmod 600 /etc/netplan/*.yaml
+                    sudo netplan apply
+                    dialog --colors --msgbox "\Zb\Z2Route saved permanently in Netplan.\Zn" 5 40
                 else
-                    dialog --colors --msgbox "\Zb\Z1Failed to add route!\Zn" 5 40
-                    continue
+                    dialog --colors --msgbox "\Zb\Z1Unsupported network configuration. Route not saved permanently.\Zn" 5 40
                 fi
+            fi
+            ;;
 
-                # پرسش از کاربر برای ذخیره‌سازی دائمی
-                dialog --yesno "Do you want to save this route persistently?" 10 50
-                response=$?
-                if [ $response -eq 0 ]; then
-                    # تشخیص نوع پیکربندی شبکه
-                    config_type=$(detect_network_config)
-
-                    if [ "$config_type" == "interfaces" ]; then
-                        echo -e "up ip route add $destination via $gateway dev $interface" | sudo tee -a /etc/network/interfaces > /dev/null
-                        dialog --colors --msgbox "\Zb\Z2Route saved permanently in /etc/network/interfaces.\Zn" 5 40
-                    elif [ "$config_type" == "netplan" ]; then
-                        sudo bash -c "cat << EOF >> /etc/netplan/99-custom-routes.yaml
-network:
-    version: 2
-    ethernets:
-        $interface:
-            routes:
-                - to: $destination
-                  via: $gateway
-EOF"
-                        sudo chmod 600 /etc/netplan/*.yaml
-                        sudo netplan apply
-                        dialog --colors --msgbox "\Zb\Z2Route saved permanently in Netplan.\Zn" 5 40
-                    else
-                        dialog --colors --msgbox "\Zb\Z1Unsupported network configuration. Route not saved permanently.\Zn" 5 40
-                    fi
-                fi
-                ;;
 
             2)  # حذف روت
                 routes=$(ip route show)  # دریافت لیست روت‌های فعلی
@@ -398,16 +406,17 @@ EOF"
                 temp_file=$(mktemp)
 
                 # عنوان ستون‌ها
-                echo -e "| Destination    | Gateway        | Interface |" > "$temp_file"
-                echo -e "-----------------------------------------------" >> "$temp_file"
+                echo -e "| Destination    | Gateway        | Metric | Interface |" > "$temp_file"
+                echo -e "--------------------------------------------------------" >> "$temp_file"
 
                 # پردازش روت‌ها و مرتب‌سازی برای نمایش زیبا
                 echo "$routes" | awk '
                 {
                     dest = ($1 == "default") ? "default" : $1;
                     gw = ($2 == "via") ? $3 : "-";
+                    metric = ($0 ~ /metric/) ? $(NF-1) : "-";
                     iface = ($NF ~ /^[a-zA-Z0-9]+$/) ? $NF : "-";
-                    printf "| %-14s | %-13s | %-9s |\n", dest, gw, iface;
+                    printf "| %-14s | %-13s | %-6s | %-9s |\n", dest, gw, metric, iface;
                 }' >> "$temp_file"
 
                 # نمایش روت‌ها در قالب جدول
@@ -417,12 +426,14 @@ EOF"
                 rm -f "$temp_file"
                 ;;
 
+
             4)
                 return
                 ;;
         esac
     done
 }
+
 
 # Function to set DNS with colors and persistence option for both NetworkManager and Netplan
 set_dns() {
