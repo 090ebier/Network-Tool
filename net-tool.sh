@@ -1,5 +1,11 @@
 #!/bin/bash
-
+# Check if the script was called with 'net-tool update'
+if [ "$1" == "update" ]; then
+    echo "Updating Network Tool..."
+    curl -Ls https://raw.githubusercontent.com/090ebier/Network-Tool/main/install.sh -o /tmp/install.sh
+    sudo bash /tmp/install.sh
+    exit 0
+fi
 trap "clear; echo 'Exiting Network Tool Management...'; exit" SIGINT
 if [ "$EUID" -ne 0 ]; then
     echo "This script requires root privileges. Restarting with sudo..."
