@@ -12,8 +12,6 @@ elif [ "$1" == "uninstall" ]; then
     echo "Network Tool has been uninstalled."
     exit 0
 fi
-
-fi
 trap "clear; echo 'Exiting Network Tool Management...'; exit" SIGINT
 if [ "$EUID" -ne 0 ]; then
     echo "This script requires root privileges. Restarting with sudo..."
