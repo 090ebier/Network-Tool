@@ -16,18 +16,17 @@ get_terminal_size() {
 
 
 # Function to show the Interface Brief in table format
+# Function to show the Interface Brief in table format
 show_interface_brief() {
     interfaces=$(ip -o link show | awk -F': ' '{print $2}')
     printf "%-10s %-20s %-8s %-8s %-15s %-15s\n" "Interface" "IP Address" "Type" "Status" "Gateway" "Assignment" > /tmp/interface_brief.txt
     echo "---------------------------------------------------------------------------------" >> /tmp/interface_brief.txt
 
     for iface in $interfaces; do
-        ip_addr=$(ip -o -4 addr show $iface | awk '{print $4}' || echo "Unknown")
-        [ -z "$ip_addr" ] && ip_addr=$(ip -o -6 addr show $iface | awk '{print $4}' || echo "Unknown")
+        # Gather all IP addresses for the interface
+        ip_addresses=$(ip -o addr show $iface | awk '{print $4}')
 
-        ip_type="Unknown"
-        [[ $ip_addr == *":"* ]] && ip_type="IPv6" || ip_type="IPv4"
-
+        # Determine status, gateway, and assignment only once per interface
         status=$(cat /sys/class/net/$iface/operstate)
         gateway=$(ip route | grep default | grep $iface | awk '{print $3}' || echo "Unknown")
 
@@ -40,8 +39,22 @@ show_interface_brief() {
             assignment="Static"
         fi
 
-        # Adjust the column sizes to fit the text
-        printf "%-10s %-20s %-8s %-8s %-15s %-15s\n" "$iface" "$ip_addr" "$ip_type" "$status" "$gateway" "$assignment" >> /tmp/interface_brief.txt
+        # Loop through each IP address and print it in a separate row
+        first_row=true
+        for ip_addr in $ip_addresses; do
+            # Determine IP type
+            ip_type="Unknown"
+            [[ $ip_addr == *":"* ]] && ip_type="IPv6" || ip_type="IPv4"
+
+            if $first_row; then
+                # Print the full row for the first IP address
+                printf "%-10s %-20s %-8s %-8s %-15s %-15s\n" "$iface" "$ip_addr" "$ip_type" "$status" "$gateway" "$assignment" >> /tmp/interface_brief.txt
+                first_row=false
+            else
+                # Print only IP address and leave other fields blank for additional IPs
+                printf "%-10s %-20s %-8s %-8s %-15s %-15s\n" "" "$ip_addr" "$ip_type" "" "" "" >> /tmp/interface_brief.txt
+            fi
+        done
     done
 
     dialog --title "Interface Brief" --textbox /tmp/interface_brief.txt 20 80
