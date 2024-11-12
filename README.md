@@ -117,6 +117,7 @@ If you want to remove the tool from your system, you can run the following comma
 sudo net-tool uninstall
 ```
 This command will delete the tool's installation files from /opt/net-tool and remove the net-tool command from /usr/local/bin.
+
 ---
 
 #### Troubleshooting
