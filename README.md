@@ -111,13 +111,12 @@ sudo bash /tmp/install.sh
 
 #### Uninstallation
 
-To uninstall the **Network Management Tool**, you can manually remove the installation directory and symbolic link:
+If you want to remove the tool from your system, you can run the following command:
 
 ```bash
-sudo rm -rf /opt/net-tool
-sudo rm /usr/local/bin/net-tool
+sudo net-tool uninstall
 ```
-
+This command will delete the tool's installation files from /opt/net-tool and remove the net-tool command from /usr/local/bin.
 ---
 
 #### Troubleshooting
