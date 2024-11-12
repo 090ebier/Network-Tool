@@ -1,10 +1,18 @@
 #!/bin/bash
-# Check if the script was called with 'net-tool update'
+# Check if the script was called with 'net-tool update or net-tool uninstall'
 if [ "$1" == "update" ]; then
     echo "Updating Network Tool..."
     curl -Ls https://raw.githubusercontent.com/090ebier/Network-Tool/main/install.sh -o /tmp/install.sh
     sudo bash /tmp/install.sh
     exit 0
+elif [ "$1" == "uninstall" ]; then
+    echo "Uninstalling Network Tool..."
+    sudo rm -rf /opt/net-tool
+    sudo rm /usr/local/bin/net-tool
+    echo "Network Tool has been uninstalled."
+    exit 0
+fi
+
 fi
 trap "clear; echo 'Exiting Network Tool Management...'; exit" SIGINT
 if [ "$EUID" -ne 0 ]; then
