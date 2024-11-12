@@ -108,6 +108,11 @@ Alternatively, you can manually run the update command:
 curl -Ls https://raw.githubusercontent.com/090ebier/Network-Tool/main/install.sh -o /tmp/install.sh
 sudo bash /tmp/install.sh
 ```
+Or To update the tool to the latest version, you can use the following command. This will directly run the update option (Option 5) without entering the interactive menu:
+
+```bash
+sudo net-tool update
+```
 
 #### Uninstallation
 
