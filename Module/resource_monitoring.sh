@@ -18,6 +18,9 @@ send_message_to_telegram() {
     bot_api_token=$BOT_API_TOKEN
     user_id=$USER_ID
 
+    local host_name=$(hostname)
+    message="Hostname: $host_name\n\n$message"
+    
     formatted_message=$(echo "$message" | sed 's/\\n/%0A/g')
 
     curl -s -X POST "https://api.telegram.org/bot$bot_api_token/sendMessage" \
