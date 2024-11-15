@@ -51,7 +51,7 @@ If git and curl are not already installed, install them with the following comma
 
    ```bash
    apt-get update
-   apt-get install git curl -y
+   apt-get install git curl wget -y
    ```
 
 1. **Run the Installer:**
