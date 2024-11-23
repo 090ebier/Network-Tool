@@ -144,6 +144,28 @@ guess_subnet_mask() {
     fi
 }
 
+subnet_mask_to_cidr() {
+    local mask=$1
+    local cidr=0
+
+    # Iterate over each octet in the subnet mask
+    for octet in $(echo "$mask" | tr '.' ' '); do
+        case $octet in
+            255) cidr=$((cidr + 8)) ;;
+            254) cidr=$((cidr + 7)) ;;
+            252) cidr=$((cidr + 6)) ;;
+            248) cidr=$((cidr + 5)) ;;
+            240) cidr=$((cidr + 4)) ;;
+            224) cidr=$((cidr + 3)) ;;
+            192) cidr=$((cidr + 2)) ;;
+            128) cidr=$((cidr + 1)) ;;
+            0) ;; # No bits to add
+            *) echo "Invalid subnet mask: $mask" >&2; return 1 ;;
+        esac
+    done
+
+    echo "$cidr"
+}
 
 set_ip_address() {
     interfaces=$(ip -o link show | awk -F': ' '{print $2}')
@@ -185,13 +207,20 @@ set_ip_address() {
             return  # Cancel pressed, return to previous menu
         fi
 
+        cidr_mask=$(subnet_mask_to_cidr "$subnet_mask")
+        if [ $? -ne 0 ]; then
+            dialog --msgbox "Invalid Subnet Mask entered. Please try again." 10 50
+            return
+        fi
+
         gateway=$(dialog --title "Set Gateway" --inputbox "Enter Gateway (Optional):" 10 50 3>&1 1>&2 2>&3)
         if [ $? -ne 0 ]; then
             return  # Cancel pressed, return to previous menu
         fi
+
         sudo ip addr flush dev "$selected_iface"
         # Set the static IP configuration
-        sudo ip addr add "$ip_addr/$subnet_mask" dev "$selected_iface"
+        sudo ip addr add "$ip_addr/$cidr_mask" dev "$selected_iface"
         sudo ip route add default via "$gateway"
 
         if is_netplan_active; then
@@ -202,7 +231,7 @@ network:
         $selected_iface:
             dhcp4: no
             addresses:
-                - $ip_addr/$subnet_mask
+                - $ip_addr/$cidr_mask
             gateway4: $gateway
 EOF"
             sudo chmod 600 /etc/netplan/*.yaml
@@ -215,7 +244,6 @@ EOF"
 
     else
         # DHCP configuration
-        # DO NOT flush existing IP configuration yet to avoid losing SSH connection
         if command -v dhclient > /dev/null 2>&1; then
             sudo dhclient "$selected_iface"
             dhcp_method="dhclient"
@@ -227,9 +255,7 @@ EOF"
             return
         fi
 
-        # If DHCP was successful, flush previous IP configuration
         if [ $? -eq 0 ]; then
-
             if is_netplan_active; then
                 sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
 network:
@@ -238,7 +264,7 @@ network:
         $selected_iface:
             dhcp4: yes
 EOF"
-               sudo chmod 600 /etc/netplan/*.yaml
+                sudo chmod 600 /etc/netplan/*.yaml
                 sudo netplan apply
                 dialog --msgbox "DHCP configuration applied using $dhcp_method and saved in Netplan." 10 50
             else
