@@ -224,7 +224,7 @@ set_ip_address() {
         sudo ip route add default via "$gateway"
 
         if is_netplan_active; then
-            sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
+        sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
 network:
     version: 2
     ethernets:
@@ -232,8 +232,11 @@ network:
             dhcp4: no
             addresses:
                 - $ip_addr/$cidr_mask
-            gateway4: $gateway
+            routes:
+                - to: 0.0.0.0/0
+                  via: $gateway
 EOF"
+
             sudo chmod 600 /etc/netplan/*.yaml
             sudo netplan apply
             dialog --msgbox "Static IP configuration applied and saved in Netplan." 10 50
