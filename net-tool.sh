@@ -38,15 +38,18 @@ make_modules_executable() {
 }
 
 determine_network_config() {
-    if systemctl is-active systemd-networkd > /dev/null 2>&1 || [ -d /etc/netplan ] && [ "$(ls -A /etc/netplan)" ]; then
-        echo "Netplan"
-    elif systemctl is-active NetworkManager > /dev/null 2>&1; then
-        echo "NetworkManager"
-    elif [ -f /etc/network/interfaces ]; then
-        echo "Interfaces file"
+
+    if command -v netplan >/dev/null 2>&1; then
+        echo " Using Netplan"
+        return 0
+    elif [ -d /etc/network/interfaces.d ]; then
+        echo "Using /etc/network/interfaces.d "
+        return 0
     else
-        echo "Unknown Configuration"
+        echo "Unknown network configuration method."
+        return 1
     fi
+
 }
 
 switch_theme() {
