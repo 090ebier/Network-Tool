@@ -14,8 +14,134 @@ get_terminal_size() {
 }
 
 
+set_ip_address() {
+    interfaces=$(ip -o link show | awk -F': ' '{print $2}')
+    iface_choice=$(dialog --title "Select Interface" --menu "Choose an interface:" 15 40 4 $(echo "$interfaces" | awk '{print NR, $1}') 3>&1 1>&2 2>&3)
 
-# Function to show the Interface Brief in table format
+    if [ $? -ne 0 ]; then
+        return  # Cancel pressed, return to previous menu
+    fi
+
+    selected_iface=$(echo "$interfaces" | sed -n "${iface_choice}p")
+
+    ip_type=$(dialog --title "IP Configuration" --menu "Do you want to set Static IP or use DHCP?" 15 40 2 \
+        1 "Static" \
+        2 "DHCP" 3>&1 1>&2 2>&3)
+
+    if [ $? -ne 0 ]; then
+        return  # Cancel pressed, return to previous menu
+    fi
+
+    # Function to check if Netplan is active
+    is_netplan_active() {
+        if command -v netplan >/dev/null 2>&1; then
+            return 0 # Netplan is active
+        else
+            return 1  # Netplan is not active
+        fi
+    }
+
+    # Function to clean up old configurations
+    cleanup_previous_config() {
+        if is_netplan_active; then
+            sudo rm -f /etc/netplan/99-custom-"$selected_iface".yaml
+        else
+            sudo rm -f /etc/network/interfaces.d/"$selected_iface"
+        fi
+
+        sudo ip addr flush dev "$selected_iface"
+        sudo ip route flush dev "$selected_iface"
+    }
+
+
+    if [ "$ip_type" -eq 1 ]; then
+        # Static IP configuration
+        ip_addr=$(dialog --title "Set Static IP" --inputbox "Enter IP Address:" 10 50 3>&1 1>&2 2>&3)
+        if [ $? -ne 0 ]; then
+            return  # Cancel pressed, return to previous menu
+        fi
+
+        default_subnet_mask=$(guess_subnet_mask "$ip_addr")
+        subnet_mask=$(dialog --title "Set Subnet Mask" --inputbox "Enter Subnet Mask (Default: $default_subnet_mask):" 10 50 "$default_subnet_mask" 3>&1 1>&2 2>&3)
+        if [ $? -ne 0 ]; then
+            return  # Cancel pressed, return to previous menu
+        fi
+
+        cidr_mask=$(subnet_mask_to_cidr "$subnet_mask")
+        if [ $? -ne 0 ]; then
+            dialog --msgbox "Invalid Subnet Mask entered. Please try again." 10 50
+            return
+        fi
+
+        gateway=$(dialog --title "Set Gateway" --inputbox "Enter Gateway (Optional):" 10 50 3>&1 1>&2 2>&3)
+        if [ $? -ne 0 ]; then
+            return  # Cancel pressed, return to previous menu
+        fi
+        
+        # Apply Static Configuration
+        cleanup_previous_config
+        sudo ip addr add "$ip_addr/$cidr_mask" dev "$selected_iface"
+        sudo ip route add default via "$gateway"
+
+        if is_netplan_active; then
+            sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
+network:
+    version: 2
+    ethernets:
+        $selected_iface:
+            dhcp4: no
+            addresses:
+                - $ip_addr/$cidr_mask
+            routes:
+                - to: 0.0.0.0/0
+                  via: $gateway
+EOF"
+            sudo chmod 600 /etc/netplan/*.yaml
+            sudo netplan apply
+            dialog --msgbox "Static IP configuration applied and saved in Netplan." 10 50
+        else
+            echo -e "auto $selected_iface\niface $selected_iface inet static\n    address $ip_addr\n    netmask $subnet_mask\n    gateway $gateway" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
+            dialog --msgbox "Static IP configuration applied and saved to /etc/network/interfaces." 10 50
+        fi
+    else
+        cleanup_previous_config
+        # DHCP configuration
+        if command -v dhclient > /dev/null 2>&1; then
+            sudo dhclient -r "$selected_iface"
+            sudo dhclient "$selected_iface"
+            dhcp_method="dhclient"
+        elif command -v dhcpcd > /dev/null 2>&1; then
+            sudo dhcpcd -k "$selected_iface"
+            sudo dhcpcd "$selected_iface"
+            dhcp_method="dhcpcd"
+        elif command -v udhcpc > /dev/null 2>&1 ; then
+            sudo udhcpc -R -i "$selected_iface"
+            dhcp_method="udhcpc"
+        else
+            dialog --msgbox "Neither dhclient nor dhcpcd found. Unable to configure DHCP." 10 50
+            return
+        fi
+
+        if is_netplan_active; then
+            sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
+network:
+    version: 2
+    ethernets:
+        $selected_iface:
+            dhcp4: yes
+EOF"
+            sudo chmod 600 /etc/netplan/*.yaml
+            sudo netplan apply
+            dialog --msgbox "DHCP configuration applied using $dhcp_method and saved in Netplan." 10 50
+        else
+            echo -e "auto $selected_iface\niface $selected_iface inet dhcp" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
+            dialog --msgbox "DHCP configuration applied using $dhcp_method and saved to /etc/network/interfaces." 10 50
+        fi
+    fi
+
+    show_interface_brief
+}
+
 # Function to show the Interface Brief in table format
 show_interface_brief() {
     interfaces=$(ip -o link show | awk -F': ' '{print $2}')
@@ -187,12 +313,31 @@ set_ip_address() {
 
     # Function to check if Netplan is active
     is_netplan_active() {
-        if [ -d /etc/netplan ] && [ "$(ls -A /etc/netplan)" ]; then
-            return 0  # Netplan is active
+        if command -v netplan >/dev/null 2>&1; then
+            return 0 # Netplan is active
         else
             return 1  # Netplan is not active
         fi
     }
+
+    # Function to clean up old configurations
+    cleanup_previous_config() {
+        if is_netplan_active; then
+            sudo rm -f /etc/netplan/99-custom-"$selected_iface".yaml
+        else
+            sudo rm -f /etc/network/interfaces.d/"$selected_iface"
+        fi
+
+        sudo ip addr flush dev "$selected_iface"
+
+        default_gateway=$(ip route show default | grep "$selected_iface" | awk '{print $3}')
+
+        if [ -n "$default_gateway" ]; then
+            sudo ip route del default via "$default_gateway" dev "$selected_iface" 2>/dev/null || true
+        fi
+    }
+
+
 
     if [ "$ip_type" -eq 1 ]; then
         # Static IP configuration
@@ -218,13 +363,13 @@ set_ip_address() {
             return  # Cancel pressed, return to previous menu
         fi
 
-        sudo ip addr flush dev "$selected_iface"
-        # Set the static IP configuration
+        # Apply Static Configuration
+        cleanup_previous_config
         sudo ip addr add "$ip_addr/$cidr_mask" dev "$selected_iface"
         sudo ip route add default via "$gateway"
 
         if is_netplan_active; then
-        sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
+            sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
 network:
     version: 2
     ethernets:
@@ -236,7 +381,6 @@ network:
                 - to: 0.0.0.0/0
                   via: $gateway
 EOF"
-
             sudo chmod 600 /etc/netplan/*.yaml
             sudo netplan apply
             dialog --msgbox "Static IP configuration applied and saved in Netplan." 10 50
@@ -244,38 +388,39 @@ EOF"
             echo -e "auto $selected_iface\niface $selected_iface inet static\n    address $ip_addr\n    netmask $subnet_mask\n    gateway $gateway" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
             dialog --msgbox "Static IP configuration applied and saved to /etc/network/interfaces." 10 50
         fi
-
     else
         # DHCP configuration
+        cleanup_previous_config
         if command -v dhclient > /dev/null 2>&1; then
+            sudo dhclient -r "$selected_iface"
             sudo dhclient "$selected_iface"
             dhcp_method="dhclient"
         elif command -v dhcpcd > /dev/null 2>&1; then
+            sudo dhcpcd -k "$selected_iface"
             sudo dhcpcd "$selected_iface"
             dhcp_method="dhcpcd"
+        elif command -v udhcpc > /dev/null 2>&1 ; then
+            sudo udhcpc -R -i "$selected_iface"
+            dhcp_method="udhcpc"
         else
             dialog --msgbox "Neither dhclient nor dhcpcd found. Unable to configure DHCP." 10 50
             return
         fi
 
-        if [ $? -eq 0 ]; then
-            if is_netplan_active; then
-                sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
+        if is_netplan_active; then
+            sudo bash -c "cat << EOF > /etc/netplan/99-custom-$selected_iface.yaml
 network:
     version: 2
     ethernets:
         $selected_iface:
             dhcp4: yes
 EOF"
-                sudo chmod 600 /etc/netplan/*.yaml
-                sudo netplan apply
-                dialog --msgbox "DHCP configuration applied using $dhcp_method and saved in Netplan." 10 50
-            else
-                echo -e "auto $selected_iface\niface $selected_iface inet dhcp" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
-                dialog --msgbox "DHCP configuration applied using $dhcp_method and saved to /etc/network/interfaces." 10 50
-            fi
+            sudo chmod 600 /etc/netplan/*.yaml
+            sudo netplan apply
+            dialog --msgbox "DHCP configuration applied using $dhcp_method and saved in Netplan." 10 50
         else
-            dialog --msgbox "Failed to obtain DHCP address. Previous IP configuration remains." 10 50
+            echo -e "auto $selected_iface\niface $selected_iface inet dhcp" | sudo tee /etc/network/interfaces.d/$selected_iface > /dev/null
+            dialog --msgbox "DHCP configuration applied using $dhcp_method and saved to /etc/network/interfaces." 10 50
         fi
     fi
 
